@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PIT.Boletas.Application/PIT.Boletas.Application.csproj" />
+    <Project Path="src/PIT.Boletas.Domain/PIT.Boletas.Domain.csproj" />
+    <Project Path="src/PIT.Boletas.Infrastructure/PIT.Boletas.Infrastructure.csproj" />
+    <Project Path="src/PIT.Boletas.Observability/PIT.Boletas.Observability.csproj" />
+    <Project Path="src/PIT.Boletas.Worker/PIT.Boletas.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PIT.Boletas.IntegrationTests/PIT.Boletas.IntegrationTests.csproj" />
+    <Project Path="tests/PIT.Boletas.UnitTests/PIT.Boletas.UnitTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,11 @@
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\bin\Debug\net10.0\PIT.Boletas.Observability.deps.json
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\bin\Debug\net10.0\PIT.Boletas.Observability.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\bin\Debug\net10.0\PIT.Boletas.Observability.pdb
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\PIT.Boletas.Observability.GeneratedMSBuildEditorConfig.editorconfig
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\PIT.Boletas.Observability.AssemblyInfoInputs.cache
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\PIT.Boletas.Observability.AssemblyInfo.cs
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\PIT.Boletas.Observability.csproj.CoreCompileInputs.cache
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\PIT.Boletas.Observability.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\refint\PIT.Boletas.Observability.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\PIT.Boletas.Observability.pdb
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Observability\obj\Debug\net10.0\ref\PIT.Boletas.Observability.dll

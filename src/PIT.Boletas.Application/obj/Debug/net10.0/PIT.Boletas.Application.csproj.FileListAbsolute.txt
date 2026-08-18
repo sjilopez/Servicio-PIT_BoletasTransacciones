@@ -1,0 +1,15 @@
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\bin\Debug\net10.0\PIT.Boletas.Application.deps.json
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\bin\Debug\net10.0\PIT.Boletas.Application.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\bin\Debug\net10.0\PIT.Boletas.Application.pdb
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\bin\Debug\net10.0\PIT.Boletas.Domain.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\bin\Debug\net10.0\PIT.Boletas.Domain.pdb
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.csproj.AssemblyReference.cache
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.GeneratedMSBuildEditorConfig.editorconfig
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.AssemblyInfoInputs.cache
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.AssemblyInfo.cs
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.csproj.CoreCompileInputs.cache
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Bole.2B9CFC14.Up2Date
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\refint\PIT.Boletas.Application.dll
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\PIT.Boletas.Application.pdb
+D:\wamp\www\Servicio PIT_BoletasTransacciones\src\PIT.Boletas.Application\obj\Debug\net10.0\ref\PIT.Boletas.Application.dll
