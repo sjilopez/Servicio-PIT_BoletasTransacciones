@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PIT.Boletas.Worker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+933c900681868c96f61bf03424e460338f4f39cb")]
 [assembly: System.Reflection.AssemblyProductAttribute("PIT.Boletas.Worker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PIT.Boletas.Worker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
