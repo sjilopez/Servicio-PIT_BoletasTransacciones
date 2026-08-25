@@ -9,8 +9,6 @@ dotnet publish "%ROOT%\src\PIT.Boletas.Worker\PIT.Boletas.Worker.csproj" ^
   --configuration Release ^
   --runtime win-x64 ^
   --self-contained true ^
-  -p:PublishSingleFile=true ^
-  -p:IncludeNativeLibrariesForSelfExtract=true ^
   --output "%OUTPUT%"
 
 if errorlevel 1 (

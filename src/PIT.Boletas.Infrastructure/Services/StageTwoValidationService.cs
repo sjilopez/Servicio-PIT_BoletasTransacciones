@@ -24,6 +24,7 @@ public sealed class StageTwoValidationService(
     {
         string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, "2_VALIDATE");
         string successPath = PipelinePathResolver.StagePath(_folders.BasePath, "3_OCR");
+        string errorPath = PipelinePathResolver.StagePath(_folders.BasePath, "4_ERROR_OCR");
         string bypassPath = PipelinePathResolver.StagePath(_folders.BasePath, "6_COMPRESS");
 
         if (!Directory.Exists(sourcePath))
@@ -40,6 +41,7 @@ public sealed class StageTwoValidationService(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            string txtOutput = Path.Combine(_folders.OcrTextOutputPath, Path.GetFileNameWithoutExtension(pdfPath) + ".txt");
             string text;
             try
             {
@@ -47,7 +49,7 @@ public sealed class StageTwoValidationService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Local OCR failed for {FileName}. Document will be routed to 6_COMPRESS.", Path.GetFileName(pdfPath));
+                logger.LogError(ex, "Local OCR failed for {FileName}. Document will be routed to 4_ERROR_OCR.", Path.GetFileName(pdfPath));
                 await operationalEventService.TrackAsync(
                     "error",
                     "operational",
@@ -58,10 +60,18 @@ public sealed class StageTwoValidationService(
                     MetadataSidecarStore.LoadOrCreate(pdfPath),
                     null,
                     cancellationToken);
-                text = string.Empty;
+
+                if (File.Exists(txtOutput))
+                {
+                    File.Delete(txtOutput);
+                }
+
+                string errorDestination = Path.Combine(errorPath, Path.GetFileName(pdfPath));
+                MetadataSidecarStore.MoveWithMetadata(pdfPath, errorDestination);
+                moved++;
+                continue;
             }
 
-            string txtOutput = Path.Combine(_folders.OcrTextOutputPath, Path.GetFileNameWithoutExtension(pdfPath) + ".txt");
             File.WriteAllText(txtOutput, text, Encoding.UTF8);
 
             int matched = 0;

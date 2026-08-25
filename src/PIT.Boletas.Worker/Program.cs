@@ -1,4 +1,5 @@
 using PIT.Boletas.Application.Configuration;
+using PIT.Boletas.Application.Abstractions;
 using PIT.Boletas.Infrastructure.Security;
 using PIT.Boletas.Infrastructure.DependencyInjection;
 using PIT.Boletas.Worker.HostedServices;
@@ -68,6 +69,20 @@ builder.Services.AddHostedService<PipelineOrchestratorWorker>();
 builder.Services.AddHostedService<ServiceHeartbeatHostedService>();
 
 var host = builder.Build();
+
+if (TryGetArgumentValue(args, "--check-ocr", out string? ocrPath))
+{
+	if (!File.Exists(ocrPath))
+	{
+		throw new FileNotFoundException("No se encontro el PDF para comprobar OCR.", ocrPath);
+	}
+
+	ILocalOcrService ocrService = host.Services.GetRequiredService<ILocalOcrService>();
+	string text = await ocrService.ExtractTextFromPdfAsync(ocrPath, CancellationToken.None);
+	Console.WriteLine($"OCR OK. Caracteres: {text.Length}");
+	return;
+}
+
 host.Run();
 
 static bool TryGetArgumentValue(string[] args, string argumentName, out string? value)

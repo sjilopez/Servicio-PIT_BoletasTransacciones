@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-PIT.Boletas.Worker-65c7e2b6-d8b7-40e0-9e46-4bc31e672fd0</UserSecretsId>
+    <TesseractPackageVersion>5.2.0</TesseractPackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,16 +32,12 @@
   </ItemGroup>
 
   <Target Name="CopyTesseractNativeLibraries" AfterTargets="Publish">
-    <ItemGroup>
-      <TesseractNativeLibraries Include="$(PublishDir)leptonica-1.82.0.dll" />
-      <TesseractNativeLibraries Include="$(PublishDir)tesseract50.dll" />
-    </ItemGroup>
     <MakeDir Directories="$(PublishDir)x64;$(PublishDir)x86" />
-    <Copy SourceFiles="@(TesseractNativeLibraries)"
-          DestinationFiles="@(TesseractNativeLibraries->'$(PublishDir)x64\%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-        <Copy SourceFiles="@(TesseractNativeLibraries)"
-          DestinationFiles="@(TesseractNativeLibraries->'$(PublishDir)x86\%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
+      <Copy SourceFiles="$(NuGetPackageRoot)tesseract\$(TesseractPackageVersion)\x64\leptonica-1.82.0.dll;$(NuGetPackageRoot)tesseract\$(TesseractPackageVersion)\x64\tesseract50.dll"
+        DestinationFiles="$(PublishDir)x64\leptonica-1.82.0.dll;$(PublishDir)x64\tesseract50.dll"
+        SkipUnchangedFiles="true" />
+      <Copy SourceFiles="$(NuGetPackageRoot)tesseract\$(TesseractPackageVersion)\x86\leptonica-1.82.0.dll;$(NuGetPackageRoot)tesseract\$(TesseractPackageVersion)\x86\tesseract50.dll"
+        DestinationFiles="$(PublishDir)x86\leptonica-1.82.0.dll;$(PublishDir)x86\tesseract50.dll"
+        SkipUnchangedFiles="true" />
   </Target>
 </Project>
