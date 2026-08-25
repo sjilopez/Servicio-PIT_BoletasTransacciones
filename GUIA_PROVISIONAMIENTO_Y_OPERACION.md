@@ -119,6 +119,24 @@ Start-Service PIT_BoletasTransacciones
 Restart-Service PIT_BoletasTransacciones
 ```
 
+### Instalacion sin PowerShell
+
+Los hosts remotos no necesitan PowerShell. Copie el contenido de `artifacts\publish\win-x64` y el archivo cifrado al host destino. Abra una consola `cmd.exe` como Administrador y ejecute:
+
+```cmd
+Install-Service.cmd "C:\PIT-Seguro\pit-credenciales.enc.json"
+```
+
+El comando crea el servicio como `LocalSystem`, provisiona el archivo cifrado, elimina el archivo temporal y arranca el servicio. Para instalar sin cambiar credenciales, ejecute `Install-Service.cmd` sin argumento.
+
+Para desinstalar:
+
+```cmd
+Uninstall-Service.cmd
+```
+
+La desinstalacion no borra documentos ni credenciales de Credential Manager.
+
 ## 6. Cambiar la API key del OCR
 
 Cuando el proveedor entregue una API key nueva:
@@ -207,6 +225,14 @@ Ese archivo puede contener valores no sensibles como:
 No agregue passwords, API keys ni connection strings a ese archivo.
 
 ## 11. Pruebas locales disponibles
+
+Crear la publicacion instalable sin PowerShell en el host destino:
+
+```cmd
+deploy\install\Build-Release.cmd
+```
+
+El resultado queda en `artifacts\publish\win-x64`.
 
 Diagnostico de Credential Manager:
 
