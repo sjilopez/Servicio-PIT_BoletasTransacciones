@@ -29,4 +29,18 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
+
+  <Target Name="CopyTesseractNativeLibraries" AfterTargets="Publish">
+    <ItemGroup>
+      <TesseractNativeLibraries Include="$(PublishDir)leptonica-1.82.0.dll" />
+      <TesseractNativeLibraries Include="$(PublishDir)tesseract50.dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(PublishDir)x64;$(PublishDir)x86" />
+    <Copy SourceFiles="@(TesseractNativeLibraries)"
+          DestinationFiles="@(TesseractNativeLibraries->'$(PublishDir)x64\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(TesseractNativeLibraries)"
+          DestinationFiles="@(TesseractNativeLibraries->'$(PublishDir)x86\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>
