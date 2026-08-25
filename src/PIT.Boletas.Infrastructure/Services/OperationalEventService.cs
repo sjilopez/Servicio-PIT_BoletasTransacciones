@@ -45,7 +45,7 @@ public sealed class OperationalEventService(
                 const string sql = """
 INSERT INTO error_event
 (occurred_utc, severity, error_type, error_code, title, description, stage_name, correlation_id, agency, user_name, host_name, host_ip, remote_ip)
-VALUES (UTC_TIMESTAMP(3), @severity, @error_type, @error_code, @title, @description, @stage_name, @correlation_id, @agency, @user_name, @host_name, @host_ip, @remote_ip);
+VALUES (NOW(3), @severity, @error_type, @error_code, @title, @description, @stage_name, @correlation_id, @agency, @user_name, @host_name, @host_ip, @remote_ip);
 SELECT LAST_INSERT_ID();
 """;
 
@@ -102,7 +102,7 @@ SELECT LAST_INSERT_ID();
             const string sql = """
 INSERT INTO duplicate_event
 (created_utc, agency, user_name, host_name, host_ip, original_file_name, duplicate_file_name, duplicate_counter)
-VALUES (UTC_TIMESTAMP(3), @agency, @user_name, @host_name, @host_ip, @original_file_name, @duplicate_file_name, @duplicate_counter)
+VALUES (NOW(3), @agency, @user_name, @host_name, @host_ip, @original_file_name, @duplicate_file_name, @duplicate_counter)
 """;
 
             await using MySqlCommand cmd = new(sql, connection);
@@ -140,7 +140,7 @@ VALUES (UTC_TIMESTAMP(3), @agency, @user_name, @host_name, @host_ip, @original_f
             const string sql = """
 INSERT INTO service_heartbeat
 (recorded_utc, service_name, host_name, host_ip, status)
-VALUES (UTC_TIMESTAMP(3), @service_name, @host_name, @host_ip, @status)
+VALUES (NOW(3), @service_name, @host_name, @host_ip, @status)
 """;
 
             await using MySqlCommand cmd = new(sql, connection);
@@ -259,7 +259,7 @@ VALUES (UTC_TIMESTAMP(3), @service_name, @host_name, @host_ip, @status)
             const string sql = """
 INSERT INTO alert_dispatch
 (sent_utc, error_event_id, channel, destination, status)
-VALUES (UTC_TIMESTAMP(3), @error_event_id, @channel, @destination, @status)
+VALUES (NOW(3), @error_event_id, @channel, @destination, @status)
 """;
 
             await using MySqlCommand cmd = new(sql, connection);

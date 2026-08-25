@@ -41,7 +41,7 @@ public sealed class MySqlOcrResultRepository(
             const string sql = """
 INSERT INTO ocr_result_log
 (file_name, source_file_name, agency, user_name, host_name, host_ip, source_stage, created_utc, payload_sha256, payload_json)
-VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, UTC_TIMESTAMP(3), @payload_sha256, @payload_json)
+VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, NOW(3), @payload_sha256, @payload_json)
 ON DUPLICATE KEY UPDATE id = id
 """;
 
