@@ -14,6 +14,18 @@ if (args.Contains("--provision-credentials", StringComparer.OrdinalIgnoreCase))
 	return;
 }
 
+if (TryGetArgumentValue(args, "--create-provisioning-file", out string? createPath))
+{
+	WindowsCredentialStore.CreateEncryptedProvisioningFile(createPath!);
+	return;
+}
+
+if (TryGetArgumentValue(args, "--provision-encrypted", out string? encryptedPath))
+{
+	WindowsCredentialStore.ProvisionEncryptedFile(encryptedPath!);
+	return;
+}
+
 if (args.Contains("--check-credentials", StringComparer.OrdinalIgnoreCase))
 {
 	IReadOnlyCollection<string> configuredKeys = WindowsCredentialStore.GetConfiguredKeys();
@@ -57,3 +69,16 @@ builder.Services.AddHostedService<ServiceHeartbeatHostedService>();
 
 var host = builder.Build();
 host.Run();
+
+static bool TryGetArgumentValue(string[] args, string argumentName, out string? value)
+{
+	int index = Array.FindIndex(args, argument => string.Equals(argument, argumentName, StringComparison.OrdinalIgnoreCase));
+	if (index >= 0 && index + 1 < args.Length && !string.IsNullOrWhiteSpace(args[index + 1]))
+	{
+		value = args[index + 1];
+		return true;
+	}
+
+	value = null;
+	return false;
+}

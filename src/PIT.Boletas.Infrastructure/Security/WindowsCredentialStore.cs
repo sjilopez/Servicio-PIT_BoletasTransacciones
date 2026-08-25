@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security.Cryptography;
 
 namespace PIT.Boletas.Infrastructure.Security;
 
@@ -84,6 +85,106 @@ public static class WindowsCredentialStore
     public static IReadOnlyCollection<string> GetConfiguredKeys()
     {
         return LoadConfigurationOverrides().Keys.ToArray();
+    }
+
+    public static void CreateEncryptedProvisioningFile(string path)
+    {
+        Dictionary<string, string> values = new(StringComparer.OrdinalIgnoreCase);
+        Console.WriteLine("Creacion de archivo de provisioning cifrado.");
+        foreach (string configurationKey in Targets.Keys)
+        {
+            Console.Write($"{configurationKey}: ");
+            string value = ReadSecret();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                values[configurationKey] = value;
+            }
+        }
+
+        Console.Write("Contrasena del archivo: ");
+        string password = ReadSecret();
+        Console.Write("Repita la contrasena: ");
+        string confirmation = ReadSecret();
+        if (!string.Equals(password, confirmation, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Las contrasenas no coinciden.");
+        }
+
+        string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        byte[] plainText = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values));
+        byte[] salt = RandomNumberGenerator.GetBytes(16);
+        byte[] nonce = RandomNumberGenerator.GetBytes(12);
+        byte[] key = Rfc2898DeriveBytes.Pbkdf2(password, salt, 600_000, HashAlgorithmName.SHA256, 32);
+        byte[] cipherText = new byte[plainText.Length];
+        byte[] tag = new byte[16];
+
+        using (AesGcm aes = new(key, tag.Length))
+        {
+            aes.Encrypt(nonce, plainText, cipherText, tag);
+        }
+
+        ProvisioningEnvelope envelope = new(
+            1,
+            600_000,
+            Convert.ToBase64String(salt),
+            Convert.ToBase64String(nonce),
+            Convert.ToBase64String(cipherText),
+            Convert.ToBase64String(tag));
+
+        File.WriteAllText(path, JsonSerializer.Serialize(envelope, new JsonSerializerOptions { WriteIndented = true }));
+        CryptographicOperations.ZeroMemory(key);
+        CryptographicOperations.ZeroMemory(plainText);
+        Console.WriteLine($"Archivo cifrado creado: {path}");
+    }
+
+    public static void ProvisionEncryptedFile(string path)
+    {
+        ProvisioningEnvelope envelope = JsonSerializer.Deserialize<ProvisioningEnvelope>(File.ReadAllText(path))
+            ?? throw new InvalidOperationException("El archivo de provisioning esta vacio o es invalido.");
+
+        Console.Write("Contrasena del archivo: ");
+        string password = ReadSecret();
+        byte[] salt = Convert.FromBase64String(envelope.Salt);
+        byte[] nonce = Convert.FromBase64String(envelope.Nonce);
+        byte[] cipherText = Convert.FromBase64String(envelope.CipherText);
+        byte[] tag = Convert.FromBase64String(envelope.Tag);
+        byte[] key = Rfc2898DeriveBytes.Pbkdf2(password, salt, envelope.Iterations, HashAlgorithmName.SHA256, 32);
+        byte[] plainText = new byte[cipherText.Length];
+
+        try
+        {
+            using (AesGcm aes = new(key, tag.Length))
+            {
+                aes.Decrypt(nonce, cipherText, tag, plainText);
+            }
+
+            Dictionary<string, string> values = JsonSerializer.Deserialize<Dictionary<string, string>>(plainText)
+                ?? throw new InvalidOperationException("El contenido descifrado no es valido.");
+
+            foreach ((string configurationKey, string target) in Targets)
+            {
+                if (values.TryGetValue(configurationKey, out string? value) && !string.IsNullOrWhiteSpace(value))
+                {
+                    Write(target, value);
+                }
+            }
+
+            Console.WriteLine("Credenciales provisionadas correctamente.");
+        }
+        catch (CryptographicException)
+        {
+            throw new InvalidOperationException("No se pudo descifrar el archivo. Verifique la contrasena.");
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+            CryptographicOperations.ZeroMemory(plainText);
+        }
     }
 
     public static void ProvisionInteractive(TextWriter output, TextWriter error)
@@ -205,6 +306,14 @@ public static class WindowsCredentialStore
             }
         }
     }
+
+    private sealed record ProvisioningEnvelope(
+        int Version,
+        int Iterations,
+        string Salt,
+        string Nonce,
+        string CipherText,
+        string Tag);
 
     private static JsonNode? GetNode(JsonNode root, string path)
     {
