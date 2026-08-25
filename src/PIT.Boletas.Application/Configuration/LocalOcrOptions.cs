@@ -15,4 +15,16 @@ public sealed class LocalOcrOptions
     public int RenderHeight { get; set; } = 3000;
 
     public int MinTextLength { get; set; } = 20;
+
+    public string EngineMode { get; set; } = "LstmOnly";
+
+    public string PageSegMode { get; set; } = "Auto";
+
+    public int UserDefinedDpi { get; set; } = 300;
+
+    public bool EnableImagePreprocessing { get; set; } = true;
+
+    public double ContrastBoost { get; set; } = 1.35;
+
+    public int BinarizationThreshold { get; set; } = 160;
 }

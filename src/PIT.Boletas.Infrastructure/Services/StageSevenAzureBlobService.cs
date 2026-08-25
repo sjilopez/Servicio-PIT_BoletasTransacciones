@@ -63,7 +63,16 @@ public sealed class StageSevenAzureBlobService(
 
                 string blobPath = $"{basis:yyyy/MM/dd/HH}/{Path.GetFileName(pdfPath)}";
                 BlobClient blob = container.GetBlobClient(blobPath);
-                await blob.UploadAsync(pdfPath, overwrite: true, cancellationToken);
+                BlobProperties? properties = null;
+                if (await blob.ExistsAsync(cancellationToken))
+                {
+                    properties = await blob.GetPropertiesAsync(cancellationToken: cancellationToken);
+                }
+
+                if (properties?.ContentLength != new FileInfo(pdfPath).Length)
+                {
+                    await blob.UploadAsync(pdfPath, overwrite: true, cancellationToken);
+                }
 
                 metadata.AzureBlobUploaded = true;
 

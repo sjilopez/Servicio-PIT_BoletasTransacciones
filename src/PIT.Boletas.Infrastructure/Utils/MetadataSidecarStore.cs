@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using PIT.Boletas.Domain.Entities;
 
@@ -9,6 +10,7 @@ public static class MetadataSidecarStore
     {
         WriteIndented = true
     };
+    private static readonly ConcurrentDictionary<string, object> SaveLocks = new(StringComparer.OrdinalIgnoreCase);
 
     public static string GetMetadataPath(string pdfPath)
     {
@@ -39,8 +41,32 @@ public static class MetadataSidecarStore
     {
         metadata.FileName = Path.GetFileName(pdfPath);
         string metadataPath = GetMetadataPath(pdfPath);
+        string temporaryPath = metadataPath + $".{Guid.NewGuid():N}.tmp";
         string content = JsonSerializer.Serialize(metadata, JsonOptions);
-        File.WriteAllText(metadataPath, content);
+        object saveLock = SaveLocks.GetOrAdd(Path.GetFullPath(metadataPath), static _ => new object());
+
+        lock (saveLock)
+        {
+            try
+            {
+                File.WriteAllText(temporaryPath, content);
+                if (File.Exists(metadataPath))
+                {
+                    File.Replace(temporaryPath, metadataPath, destinationBackupFileName: null);
+                }
+                else
+                {
+                    File.Move(temporaryPath, metadataPath);
+                }
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
     }
 
     public static void MoveWithMetadata(string sourcePdfPath, string targetPdfPath)
@@ -48,11 +74,25 @@ public static class MetadataSidecarStore
         string sourceMetaPath = GetMetadataPath(sourcePdfPath);
         string targetMetaPath = GetMetadataPath(targetPdfPath);
 
-        File.Move(sourcePdfPath, targetPdfPath);
-
-        if (File.Exists(sourceMetaPath))
+        bool pdfMoved = false;
+        try
         {
-            File.Move(sourceMetaPath, targetMetaPath, overwrite: true);
+            File.Move(sourcePdfPath, targetPdfPath);
+            pdfMoved = true;
+
+            if (File.Exists(sourceMetaPath))
+            {
+                File.Move(sourceMetaPath, targetMetaPath, overwrite: true);
+            }
+        }
+        catch
+        {
+            if (pdfMoved && File.Exists(targetPdfPath) && !File.Exists(sourcePdfPath))
+            {
+                File.Move(targetPdfPath, sourcePdfPath);
+            }
+
+            throw;
         }
     }
 

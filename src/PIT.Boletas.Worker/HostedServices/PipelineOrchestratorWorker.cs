@@ -24,14 +24,14 @@ public sealed class PipelineOrchestratorWorker(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            int stage1 = await stageOneIngestionService.ProcessPendingAsync(stoppingToken);
-            int stage2 = await stageTwoValidationService.ProcessPendingAsync(stoppingToken);
-            int stage3 = await stageThreeOcrService.ProcessPendingAsync(stoppingToken);
-            int stage4 = await stageFourDbPendingService.ProcessPendingAsync(stoppingToken);
-            int stage5 = await stageFiveCompressionService.ProcessPendingAsync(stoppingToken);
-            int stage6 = await stageSixAzureFilesService.ProcessPendingAsync(stoppingToken);
-            int stage7 = await stageSevenAzureBlobService.ProcessPendingAsync(stoppingToken);
-            int stage8 = await stageEightRetentionService.ProcessPendingAsync(stoppingToken);
+            int stage1 = await ExecuteStageAsync("S1", stageOneIngestionService.ProcessPendingAsync, stoppingToken);
+            int stage2 = await ExecuteStageAsync("S2", stageTwoValidationService.ProcessPendingAsync, stoppingToken);
+            int stage3 = await ExecuteStageAsync("S3", stageThreeOcrService.ProcessPendingAsync, stoppingToken);
+            int stage4 = await ExecuteStageAsync("S4", stageFourDbPendingService.ProcessPendingAsync, stoppingToken);
+            int stage5 = await ExecuteStageAsync("S5", stageFiveCompressionService.ProcessPendingAsync, stoppingToken);
+            int stage6 = await ExecuteStageAsync("S6", stageSixAzureFilesService.ProcessPendingAsync, stoppingToken);
+            int stage7 = await ExecuteStageAsync("S7", stageSevenAzureBlobService.ProcessPendingAsync, stoppingToken);
+            int stage8 = await ExecuteStageAsync("S8", stageEightRetentionService.ProcessPendingAsync, stoppingToken);
 
             int total = stage1 + stage2 + stage3 + stage4 + stage5 + stage6 + stage7 + stage8;
 
@@ -53,5 +53,25 @@ public sealed class PipelineOrchestratorWorker(
         }
 
         logger.LogInformation("Pipeline orchestrator stopping.");
+    }
+
+    private async Task<int> ExecuteStageAsync(
+        string stageName,
+        Func<CancellationToken, Task<int>> processStage,
+        CancellationToken stoppingToken)
+    {
+        try
+        {
+            return await processStage(stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Pipeline stage {StageName} failed. The next stages and cycle will continue.", stageName);
+            return 0;
+        }
     }
 }

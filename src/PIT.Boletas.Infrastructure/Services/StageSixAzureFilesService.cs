@@ -1,4 +1,5 @@
 using Azure.Storage.Files.Shares;
+using Azure.Storage.Files.Shares.Models;
 using Azure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -113,6 +114,18 @@ public sealed class StageSixAzureFilesService(
 
         string fileName = segments[^1];
         ShareFileClient fileClient = current.GetFileClient(fileName);
+        FileInfo localFile = new(localPath);
+
+        if (await fileClient.ExistsAsync(cancellationToken))
+        {
+            ShareFileProperties properties = await fileClient.GetPropertiesAsync(cancellationToken: cancellationToken);
+            if (properties.ContentLength == localFile.Length)
+            {
+                return;
+            }
+
+            await fileClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+        }
 
         await using FileStream stream = File.OpenRead(localPath);
         await fileClient.CreateAsync(stream.Length, cancellationToken: cancellationToken);

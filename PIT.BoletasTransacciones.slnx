@@ -10,4 +10,7 @@
     <Project Path="tests/PIT.Boletas.IntegrationTests/PIT.Boletas.IntegrationTests.csproj" />
     <Project Path="tests/PIT.Boletas.UnitTests/PIT.Boletas.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/OcrBenchmark/OcrBenchmark.csproj" />
+  </Folder>
 </Solution>

@@ -6,12 +6,13 @@ using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
+using PdfSharp.Drawing;
+using PdfSharp.Pdf;
 using PIT.Boletas.Application.Abstractions;
 using PIT.Boletas.Application.Configuration;
 using PIT.Boletas.Domain.Entities;
 using PIT.Boletas.Infrastructure.Utils;
+using UglyToad.PdfPig;
 
 namespace PIT.Boletas.Infrastructure.Services;
 
@@ -55,8 +56,20 @@ public sealed class StageFiveCompressionService(
                     CompressPdf(pdfPath, tempCompressed, _compression);
                     if (File.Exists(tempCompressed))
                     {
-                        File.Copy(tempCompressed, pdfPath, overwrite: true);
-                        after = new FileInfo(pdfPath).Length;
+                        long compressedSize = new FileInfo(tempCompressed).Length;
+                        if (compressedSize < before)
+                        {
+                            File.Copy(tempCompressed, pdfPath, overwrite: true);
+                            after = compressedSize;
+                        }
+                        else
+                        {
+                            logger.LogInformation(
+                                "Compressed file ({CompressedSize} bytes) is not smaller than original ({OriginalSize} bytes) for {FileName}. Keeping original file.",
+                                compressedSize,
+                                before,
+                                Path.GetFileName(pdfPath));
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -103,16 +116,27 @@ public sealed class StageFiveCompressionService(
     private static void CompressPdf(string sourcePdfPath, string outputPdfPath, CompressionOptions options)
     {
         int dpi = Math.Max(72, options.TargetDpi);
-        int renderWidth = (int)Math.Round(8.27 * dpi);
-        int renderHeight = (int)Math.Round(11.69 * dpi);
 
-        using PdfDocument output = new();
-        using var reader = DocLib.Instance.GetDocReader(sourcePdfPath, new PageDimensions(renderWidth, renderHeight));
+        using PdfSharp.Pdf.PdfDocument output = new();
+        using UglyToad.PdfPig.PdfDocument sourceDocument = UglyToad.PdfPig.PdfDocument.Open(sourcePdfPath);
 
-        int pageCount = reader.GetPageCount();
+        int pageCount = sourceDocument.NumberOfPages;
         for (int pageIndex = 0; pageIndex < pageCount; pageIndex++)
         {
+            UglyToad.PdfPig.Content.Page sourcePage = sourceDocument.GetPage(pageIndex + 1);
+            double pageWidthPoints = sourcePage.Width;
+            double pageHeightPoints = sourcePage.Height;
+
+            int targetWidth = (int)Math.Max(1, Math.Round(pageWidthPoints * dpi / 72.0));
+            int targetHeight = (int)Math.Max(1, Math.Round(pageHeightPoints * dpi / 72.0));
+            int smallerDimension = Math.Min(targetWidth, targetHeight);
+            int largerDimension = Math.Max(targetWidth, targetHeight);
+
+            using var reader = DocLib.Instance.GetDocReader(
+                sourcePdfPath,
+                new PageDimensions(smallerDimension, largerDimension));
             using var pageReader = reader.GetPageReader(pageIndex);
+
             byte[] imageBytes = pageReader.GetImage();
             int width = pageReader.GetPageWidth();
             int height = pageReader.GetPageHeight();
@@ -122,13 +146,13 @@ public sealed class StageFiveCompressionService(
             byte[] jpgBytes = ToJpegBytes(processedBitmap, options.JpegQuality);
 
             PdfPage page = output.AddPage();
-            page.Width = width * 72.0 / dpi;
-            page.Height = height * 72.0 / dpi;
+            page.Width = XUnit.FromPoint(pageWidthPoints);
+            page.Height = XUnit.FromPoint(pageHeightPoints);
 
             using XGraphics gfx = XGraphics.FromPdfPage(page);
             using MemoryStream ms = new(jpgBytes);
-            using XImage xImage = XImage.FromStream(() => ms);
-            gfx.DrawImage(xImage, 0, 0, page.Width, page.Height);
+            using XImage xImage = XImage.FromStream(ms);
+            gfx.DrawImage(xImage, 0.0, 0.0, page.Width.Point, page.Height.Point);
         }
 
         output.Save(outputPdfPath);

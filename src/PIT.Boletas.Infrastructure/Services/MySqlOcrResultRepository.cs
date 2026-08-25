@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using PIT.Boletas.Application.Abstractions;
 using PIT.Boletas.Domain.Entities;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace PIT.Boletas.Infrastructure.Services;
 
@@ -38,8 +40,9 @@ public sealed class MySqlOcrResultRepository(
 
             const string sql = """
 INSERT INTO ocr_result_log
-(file_name, source_file_name, agency, user_name, host_name, host_ip, source_stage, created_utc, payload_json)
-VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, UTC_TIMESTAMP(3), @payload_json)
+(file_name, source_file_name, agency, user_name, host_name, host_ip, source_stage, created_utc, payload_sha256, payload_json)
+VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, UTC_TIMESTAMP(3), @payload_sha256, @payload_json)
+ON DUPLICATE KEY UPDATE id = id
 """;
 
             await using MySqlCommand cmd = new(sql, connection);
@@ -50,10 +53,11 @@ VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip
             cmd.Parameters.AddWithValue("@host_name", metadata.HostName);
             cmd.Parameters.AddWithValue("@host_ip", metadata.HostIp);
             cmd.Parameters.AddWithValue("@source_stage", source);
+            cmd.Parameters.AddWithValue("@payload_sha256", ComputeSha256(rawJson));
             cmd.Parameters.AddWithValue("@payload_json", rawJson);
 
-            int affected = await cmd.ExecuteNonQueryAsync(cancellationToken);
-            return affected > 0;
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+            return true;
         }
         catch (Exception ex)
         {
@@ -75,6 +79,7 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
   host_ip VARCHAR(45) NULL,
   source_stage VARCHAR(40) NOT NULL,
   created_utc DATETIME(3) NOT NULL,
+    payload_sha256 CHAR(64) NULL,
   payload_json LONGTEXT NOT NULL,
   INDEX idx_ocr_created_utc (created_utc),
   INDEX idx_ocr_agency_user (agency, user_name),
@@ -84,5 +89,34 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
 
         await using MySqlCommand command = new(ddl, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
+
+        const string addHashColumn = """
+ALTER TABLE ocr_result_log
+ADD COLUMN IF NOT EXISTS payload_sha256 CHAR(64) NULL;
+""";
+
+        await using MySqlCommand addHashCommand = new(addHashColumn, connection);
+        await addHashCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        const string uniqueIndex = """
+CREATE UNIQUE INDEX uq_ocr_file_payload
+ON ocr_result_log (file_name, payload_sha256);
+""";
+
+        try
+        {
+            await using MySqlCommand indexCommand = new(uniqueIndex, connection);
+            await indexCommand.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (MySqlException ex) when (ex.Number == 1061)
+        {
+            // The index already exists on a previously initialized database.
+        }
+    }
+
+    private static string ComputeSha256(string value)
+    {
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

@@ -1,12 +1,31 @@
 using PIT.Boletas.Application.Configuration;
+using PIT.Boletas.Infrastructure.Security;
 using PIT.Boletas.Infrastructure.DependencyInjection;
 using PIT.Boletas.Worker.HostedServices;
+
+if (!OperatingSystem.IsWindows())
+{
+	throw new PlatformNotSupportedException("PIT_BoletasTransacciones requires Windows.");
+}
+
+if (args.Contains("--provision-credentials", StringComparer.OrdinalIgnoreCase))
+{
+	WindowsCredentialStore.ProvisionInteractive(Console.Out, Console.Error);
+	return;
+}
+
+WindowsCredentialStore.MigrateLegacySettings(
+	@"C:\Scans\Tools\settings.local.json",
+	@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json");
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Configuration
-	.AddJsonFile(@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json", optional: true, reloadOnChange: true)
-	.AddJsonFile(@"C:\Scans\Tools\settings.local.json", optional: true, reloadOnChange: true);
+	.AddJsonFile(@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json", optional: true, reloadOnChange: true);
+
+builder.Configuration.AddInMemoryCollection(
+	WindowsCredentialStore.LoadConfigurationOverrides()
+		.Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value)));
 
 builder.Services.Configure<PipelineFoldersOptions>(builder.Configuration.GetSection(PipelineFoldersOptions.SectionName));
 builder.Services.Configure<IngestionOptions>(builder.Configuration.GetSection(IngestionOptions.SectionName));
@@ -18,11 +37,6 @@ builder.Services.AddWindowsService(options =>
 {
 	options.ServiceName = "PIT_BoletasTransacciones";
 });
-
-if (!OperatingSystem.IsWindows())
-{
-	throw new PlatformNotSupportedException("PIT_BoletasTransacciones requires Windows.");
-}
 
 builder.Services.AddFolderBootstrapServices();
 builder.Services.AddHostedService<FolderBootstrapHostedService>();

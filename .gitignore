@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# Configuracion local y secretos
+**/appsettings.local.json
+**/settings.local.json
+*.env
+
+# Salidas locales del servicio
+*.log
+logs/

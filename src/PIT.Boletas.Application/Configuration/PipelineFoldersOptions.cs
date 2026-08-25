@@ -10,7 +10,7 @@ public sealed class PipelineFoldersOptions
 
     public string ToolsPath { get; set; } = @"C:\Scans\Tools";
 
-    public string LocalSettingsFileName { get; set; } = "settings.local.json";
+    public string LocalSettingsFileName { get; set; } = "appsettings.local.json";
 
     public string ProgramDataConfigPath { get; set; } = @"C:\ProgramData\PIT-BoletasTransaccionales\Config";
 

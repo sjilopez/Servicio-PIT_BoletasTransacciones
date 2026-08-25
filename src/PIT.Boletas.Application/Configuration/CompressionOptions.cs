@@ -8,7 +8,7 @@ public sealed class CompressionOptions
 
     public int TargetDpi { get; set; } = 150;
 
-    public bool Grayscale { get; set; } = true;
+    public bool Grayscale { get; set; } = false;
 
-    public int JpegQuality { get; set; } = 75;
+    public int JpegQuality { get; set; } = 70;
 }

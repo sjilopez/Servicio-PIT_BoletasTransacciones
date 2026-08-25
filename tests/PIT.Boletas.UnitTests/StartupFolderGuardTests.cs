@@ -42,7 +42,7 @@ public sealed class StartupFolderGuardTests
                 Assert.True(Directory.Exists(Path.Combine(root, folder)));
             }
 
-            Assert.True(File.Exists(Path.Combine(options.ToolsPath, options.LocalSettingsFileName)));
+            Assert.True(File.Exists(Path.Combine(options.ProgramDataConfigPath, options.LocalSettingsFileName)));
         }
         finally
         {

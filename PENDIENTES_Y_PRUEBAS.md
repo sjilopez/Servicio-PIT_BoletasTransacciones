@@ -1,9 +1,9 @@
 # PIT_BoletasTransacciones - Pendientes y Pruebas
 
-## Pendientes para continuar manana
+## Estado y pendientes de produccion
 
 1. Endurecimiento de compresion PDF
-- Evaluar reemplazo de PdfSharpCore para eliminar advertencias de seguridad transitive de ImageSharp.
+- PDFsharp 6.2.4 ya reemplazo PdfSharpCore y el escaneo transitive de vulnerabilidades esta limpio.
 - Validar calidad visual y tamano final por tipo de boleta.
 
 2. Cierre de alertas en entorno real
@@ -29,11 +29,26 @@
 - Probar reintentos con caidas simuladas (OCR API, MySQL, Azure Files, Blob).
 - Verificar SLA end-to-end P99 <= 10 minutos.
 
+6. Seguridad de secretos
+- Definir la cuenta Windows con la que correra el servicio.
+- El servicio corre como `LocalSystem` y lee secretos desde Credential Manager con persistencia local de maquina.
+- La primera ejecucion migra automaticamente el archivo legado `C:\Scans\Tools\settings.local.json`.
+- IT puede ejecutar `deploy/msi/Provision-Credentials.ps1` como Administrador para provisionar o actualizar secretos.
+- Eliminar secretos del archivo local y rotarlos si fueron compartidos o respaldados.
+- Para mas de 150 hosts, distribuir el proceso con GPO, Intune, SCCM o la herramienta corporativa conectada a un vault.
+
+7. Resiliencia implementada
+- El orquestador captura errores por etapa y continua con las siguientes etapas y ciclos.
+- La metadata se escribe atomically y el movimiento PDF/sidecar se revierte si falla.
+- Los uploads Azure reutilizan una copia existente cuando el tamano coincide.
+- El JSON OCR se respalda en MySQL con SHA-256 e insercion idempotente.
+- Los secretos de MySQL, Azure, OCR y alertas se leen desde Windows Credential Manager.
+
 ## Pruebas que se pueden ejecutar desde ya
 
 ## A. Pruebas automatizadas
 1. Ejecutar:
-   - `dotnet test PIT.BoletasTransacciones.slnx`
+   - `dotnet test tests/PIT.Boletas.UnitTests/PIT.Boletas.UnitTests.csproj`
 2. Resultado esperado:
    - Compilacion exitosa.
    - Tests unitarios e integracion en verde.
@@ -51,6 +66,7 @@ Pasos:
 2. Copiar PDF de prueba en `C:\Scans\1_IN`.
 3. Verificar movimiento por etapas.
 4. Confirmar TXT OCR en `C:\Scans\OCR`.
+5. Confirmar la fila correspondiente en `ocr_result_log` cuando MySQL este disponible.
 
 ## C. Pruebas de resiliencia
 1. Apagar temporalmente MySQL y verificar `5_DB_PENDING`.
@@ -59,4 +75,5 @@ Pasos:
 
 ## Notas
 - El proyecto ya compila y los tests actuales pasan.
-- Las advertencias NU1902/NU1903 no bloquean compilacion, pero se recomienda resolverlas antes de produccion.
+- El archivo operativo unico es `C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json`.
+- La capa de texto no se conserva al reconstruir PDFs rasterizados; debe validarse si la busqueda textual es requisito.

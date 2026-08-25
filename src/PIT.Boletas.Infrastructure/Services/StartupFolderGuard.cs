@@ -86,7 +86,7 @@ public sealed class StartupFolderGuard(
 
     private void EnsureOperationalSettingsTemplate(FolderValidationReport report)
     {
-        string settingsPath = Path.Combine(_options.ToolsPath, _options.LocalSettingsFileName);
+        string settingsPath = Path.Combine(_options.ProgramDataConfigPath, _options.LocalSettingsFileName);
 
         if (File.Exists(settingsPath))
         {
@@ -145,9 +145,15 @@ public sealed class StartupFolderGuard(
         "Enabled": true,
         "Language": "spa",
         "TessDataPath": "ocr/tessdata",
-        "RenderWidth": 2200,
-        "RenderHeight": 3000,
-        "MinTextLength": 20
+                "RenderWidth": 2480,
+                "RenderHeight": 3508,
+                "MinTextLength": 20,
+                "EngineMode": "LstmOnly",
+                "PageSegMode": "Auto",
+                "UserDefinedDpi": 300,
+                "EnableImagePreprocessing": true,
+                "ContrastBoost": 1.35,
+                "BinarizationThreshold": 160
   }
 }
 """;
