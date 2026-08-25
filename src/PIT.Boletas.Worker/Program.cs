@@ -14,6 +14,18 @@ if (args.Contains("--provision-credentials", StringComparer.OrdinalIgnoreCase))
 	return;
 }
 
+if (args.Contains("--check-credentials", StringComparer.OrdinalIgnoreCase))
+{
+	IReadOnlyCollection<string> configuredKeys = WindowsCredentialStore.GetConfiguredKeys();
+	Console.WriteLine($"Credenciales configuradas: {configuredKeys.Count}");
+	foreach (string key in configuredKeys)
+	{
+		Console.WriteLine($"OK {key}");
+	}
+
+	return;
+}
+
 WindowsCredentialStore.MigrateLegacySettings(
 	@"C:\Scans\Tools\settings.local.json",
 	@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json");

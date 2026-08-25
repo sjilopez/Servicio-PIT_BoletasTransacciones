@@ -81,6 +81,11 @@ public static class WindowsCredentialStore
         return values;
     }
 
+    public static IReadOnlyCollection<string> GetConfiguredKeys()
+    {
+        return LoadConfigurationOverrides().Keys.ToArray();
+    }
+
     public static void ProvisionInteractive(TextWriter output, TextWriter error)
     {
         output.WriteLine("Provision de secretos PIT_BoletasTransacciones para LocalSystem.");
