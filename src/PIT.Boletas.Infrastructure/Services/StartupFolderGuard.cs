@@ -137,7 +137,7 @@ public sealed class StartupFolderGuard(
         "HeartbeatSeconds": 60
     },
   "ExternalOcr": {
-    "Endpoint": "",
+        "Endpoint": "http://172.179.9.62:8001/api/v1/ocr",
     "ApiKey": ""
     },
     "LocalOcr": {
