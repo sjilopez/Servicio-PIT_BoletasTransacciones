@@ -34,7 +34,6 @@ public sealed class StartupFolderGuard(
 
         ValidateStageFolders(report);
         EnsureDirectory(_options.OcrTextOutputPath, "FS_OCR", report, true);
-        EnsureDirectory(_options.ToolsPath, "FS_TOOLS", report, true);
         EnsureDirectory(_options.ProgramDataConfigPath, "FS_PROGRAMDATA", report, true);
         EnsureOperationalSettingsTemplate(report);
         EnsureTemplateSettings(report);

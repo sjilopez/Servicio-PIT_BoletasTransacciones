@@ -19,7 +19,6 @@ public sealed class StartupFolderGuardTests
             {
                 BasePath = root,
                 OcrTextOutputPath = Path.Combine(root, "OCR"),
-                ToolsPath = Path.Combine(root, "Tools"),
                 ProgramDataConfigPath = Path.Combine(root, "ProgramData")
             };
 

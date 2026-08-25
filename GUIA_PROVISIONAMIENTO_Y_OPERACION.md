@@ -22,11 +22,13 @@ La configuracion no sensible queda en:
 C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json
 ```
 
-El servicio ya no utiliza:
+El servicio ya no utiliza ni crea:
 
 ```text
 C:\Scans\Tools\settings.local.json
 ```
+
+En equipos antiguos, el servicio puede leer ese archivo una sola vez para migrarlo durante la actualizacion. Despues de confirmar la migracion, `C:\Scans\Tools` puede eliminarse.
 
 En una primera ejecucion, si existe el archivo antiguo, el servicio intenta migrar sus valores al nuevo esquema. Los secretos se guardan en Credential Manager y el archivo antiguo se elimina despues de completar la migracion.
 
