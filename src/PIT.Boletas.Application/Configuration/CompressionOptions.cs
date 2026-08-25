@@ -10,5 +10,5 @@ public sealed class CompressionOptions
 
     public bool Grayscale { get; set; } = false;
 
-    public int JpegQuality { get; set; } = 70;
+    public int JpegQuality { get; set; } = 50;
 }

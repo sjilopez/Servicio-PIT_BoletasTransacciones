@@ -219,6 +219,7 @@ Ese archivo puede contener valores no sensibles como:
 - Retencion.
 - Parametros OCR.
 - Parametros de compresion.
+- Calidad JPEG configurada actualmente en `50`.
 - Nombres de contenedor o share.
 - Umbrales de validacion.
 
