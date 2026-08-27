@@ -1,0 +1,11 @@
+ALTER TABLE `ocr_result_log`
+  ADD COLUMN `original_creation_time_local` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  ADD COLUMN `ingested_utc` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  ADD COLUMN `api_ocr_succeeded` TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN `external_ocr_last_status_code` INT NULL,
+  ADD COLUMN `external_ocr_last_error` VARCHAR(1000) NOT NULL DEFAULT '',
+  ADD COLUMN `last_api_attempt_utc` DATETIME(3) NULL,
+  ADD COLUMN `azure_files_uploaded` TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN `last_azure_files_attempt_utc` DATETIME(3) NULL,
+  ADD COLUMN `azure_blob_uploaded` TINYINT(1) NOT NULL DEFAULT 0,
+  ADD COLUMN `last_azure_blob_attempt_utc` DATETIME(3) NULL;

@@ -29,13 +29,13 @@ public sealed class StageFourDbPendingService(
 
             string payload = await File.ReadAllTextAsync(jsonPath, cancellationToken);
             string fileName = Path.GetFileNameWithoutExtension(jsonPath) + ".pdf";
-
-            DocumentProcessingMetadata metadata = new()
+            string metadataPath = MetadataSidecarStore.GetMetadataPath(jsonPath);
+            DocumentProcessingMetadata metadata = MetadataSidecarStore.LoadOrCreateFromPath(jsonPath, metadataPath);
+            metadata.FileName = fileName;
+            if (string.IsNullOrWhiteSpace(metadata.SourceFileName))
             {
-                FileName = fileName,
-                SourceFileName = fileName,
-                IngestedUtc = DateTime.UtcNow
-            };
+                metadata.SourceFileName = fileName;
+            }
 
             bool inserted = await repository.TryInsertOcrJsonAsync(metadata, payload, "5_DB_PENDING", cancellationToken);
             if (!inserted)
@@ -44,6 +44,10 @@ public sealed class StageFourDbPendingService(
             }
 
             File.Delete(jsonPath);
+            if (File.Exists(metadataPath))
+            {
+                File.Delete(metadataPath);
+            }
             done++;
         }
 

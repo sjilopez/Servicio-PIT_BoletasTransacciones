@@ -14,7 +14,8 @@ public sealed class StageSevenAzureBlobService(
     ILogger<StageSevenAzureBlobService> logger,
     IOperationalEventService operationalEventService,
     IOptions<PipelineFoldersOptions> folderOptions,
-    IConfiguration configuration) : IStageSevenAzureBlobService
+    IConfiguration configuration,
+    IOcrResultRepository repository) : IStageSevenAzureBlobService
 {
     private readonly PipelineFoldersOptions _folders = folderOptions.Value;
 
@@ -75,6 +76,7 @@ public sealed class StageSevenAzureBlobService(
                 }
 
                 metadata.AzureBlobUploaded = true;
+                await repository.TryUpdateMetadataAsync(metadata, cancellationToken);
 
                 string destination = Path.Combine(backupPath, Path.GetFileName(pdfPath));
                 MetadataSidecarStore.MoveWithMetadata(pdfPath, destination);

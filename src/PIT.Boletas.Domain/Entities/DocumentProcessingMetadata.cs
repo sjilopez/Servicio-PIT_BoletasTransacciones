@@ -26,6 +26,10 @@ public sealed class DocumentProcessingMetadata
 
     public DateTime? LastApiAttemptUtc { get; set; }
 
+    public int? ExternalOcrLastStatusCode { get; set; }
+
+    public string ExternalOcrLastError { get; set; } = string.Empty;
+
     public DateTime? LastAzureFilesAttemptUtc { get; set; }
 
     public DateTime? LastAzureBlobAttemptUtc { get; set; }

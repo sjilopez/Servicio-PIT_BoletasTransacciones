@@ -18,7 +18,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStartupFolderGuard, StartupFolderGuard>();
         services.AddSingleton<IStageOneIngestionService, StageOneIngestionService>();
         services.AddSingleton<IStageTwoValidationService, StageTwoValidationService>();
-        services.AddSingleton<IStageThreeOcrService, StageThreeOcrService>();
+        services.AddSingleton<StageThreeOcrService>();
+        services.AddSingleton<IStageThreeOcrService>(serviceProvider =>
+            serviceProvider.GetRequiredService<StageThreeOcrService>());
         services.AddSingleton<IStageFourDbPendingService, StageFourDbPendingService>();
         services.AddSingleton<IStageFiveCompressionService, StageFiveCompressionService>();
         services.AddSingleton<IStageSixAzureFilesService, StageSixAzureFilesService>();

@@ -40,8 +40,14 @@ public sealed class MySqlOcrResultRepository(
 
             const string sql = """
 INSERT INTO ocr_result_log
-(file_name, source_file_name, agency, user_name, host_name, host_ip, source_stage, created_utc, payload_sha256, payload_json)
-VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, NOW(3), @payload_sha256, @payload_json)
+(file_name, source_file_name, agency, user_name, host_name, host_ip, source_stage, created_utc,
+ original_creation_time_local, ingested_utc, api_ocr_succeeded, external_ocr_last_status_code,
+ external_ocr_last_error, last_api_attempt_utc, azure_files_uploaded, last_azure_files_attempt_utc,
+ azure_blob_uploaded, last_azure_blob_attempt_utc, payload_sha256, payload_json)
+VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, NOW(3),
+ @original_creation_time_local, @ingested_utc, @api_ocr_succeeded, @external_ocr_last_status_code,
+ @external_ocr_last_error, @last_api_attempt_utc, @azure_files_uploaded, @last_azure_files_attempt_utc,
+ @azure_blob_uploaded, @last_azure_blob_attempt_utc, @payload_sha256, @payload_json)
 ON DUPLICATE KEY UPDATE id = id
 """;
 
@@ -53,6 +59,16 @@ ON DUPLICATE KEY UPDATE id = id
             cmd.Parameters.AddWithValue("@host_name", metadata.HostName);
             cmd.Parameters.AddWithValue("@host_ip", metadata.HostIp);
             cmd.Parameters.AddWithValue("@source_stage", source);
+            cmd.Parameters.AddWithValue("@original_creation_time_local", metadata.OriginalCreationTimeLocal);
+            cmd.Parameters.AddWithValue("@ingested_utc", metadata.IngestedUtc);
+            cmd.Parameters.AddWithValue("@api_ocr_succeeded", metadata.ApiOcrSucceeded);
+            cmd.Parameters.AddWithValue("@external_ocr_last_status_code", metadata.ExternalOcrLastStatusCode ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@external_ocr_last_error", metadata.ExternalOcrLastError);
+            cmd.Parameters.AddWithValue("@last_api_attempt_utc", metadata.LastApiAttemptUtc ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@azure_files_uploaded", metadata.AzureFilesUploaded);
+            cmd.Parameters.AddWithValue("@last_azure_files_attempt_utc", metadata.LastAzureFilesAttemptUtc ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("@azure_blob_uploaded", metadata.AzureBlobUploaded);
+            cmd.Parameters.AddWithValue("@last_azure_blob_attempt_utc", metadata.LastAzureBlobAttemptUtc ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@payload_sha256", ComputeSha256(rawJson));
             cmd.Parameters.AddWithValue("@payload_json", rawJson);
 
@@ -66,7 +82,49 @@ ON DUPLICATE KEY UPDATE id = id
         }
     }
 
-    private static async Task EnsureSchemaAsync(MySqlConnection connection, CancellationToken cancellationToken)
+    public async Task<bool> TryUpdateMetadataAsync(
+        DocumentProcessingMetadata metadata,
+        CancellationToken cancellationToken)
+    {
+        string connectionString = configuration.GetValue<string>("MySql:ConnectionString") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return false;
+        }
+
+        try
+        {
+            await using MySqlConnection connection = new(connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            const string sql = """
+UPDATE ocr_result_log
+SET original_creation_time_local = @original_creation_time_local,
+    ingested_utc = @ingested_utc,
+    api_ocr_succeeded = @api_ocr_succeeded,
+    external_ocr_last_status_code = @external_ocr_last_status_code,
+    external_ocr_last_error = @external_ocr_last_error,
+    last_api_attempt_utc = @last_api_attempt_utc,
+    azure_files_uploaded = @azure_files_uploaded,
+    last_azure_files_attempt_utc = @last_azure_files_attempt_utc,
+    azure_blob_uploaded = @azure_blob_uploaded,
+    last_azure_blob_attempt_utc = @last_azure_blob_attempt_utc
+WHERE file_name = @file_name AND source_file_name = @source_file_name
+""";
+
+            await using MySqlCommand cmd = new(sql, connection);
+            AddMetadataParameters(cmd, metadata);
+            int affectedRows = await cmd.ExecuteNonQueryAsync(cancellationToken);
+            return affectedRows > 0;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "MySQL metadata update failed for file {FileName}", metadata.FileName);
+            return false;
+        }
+    }
+
+    private async Task EnsureSchemaAsync(MySqlConnection connection, CancellationToken cancellationToken)
     {
         const string ddl = """
 CREATE TABLE IF NOT EXISTS ocr_result_log (
@@ -79,6 +137,16 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
   host_ip VARCHAR(45) NULL,
   source_stage VARCHAR(40) NOT NULL,
   created_utc DATETIME(3) NOT NULL,
+    original_creation_time_local DATETIME(3) NOT NULL,
+    ingested_utc DATETIME(3) NOT NULL,
+    api_ocr_succeeded TINYINT(1) NOT NULL,
+    external_ocr_last_status_code INT NULL,
+    external_ocr_last_error VARCHAR(1000) NOT NULL,
+    last_api_attempt_utc DATETIME(3) NULL,
+    azure_files_uploaded TINYINT(1) NOT NULL,
+    last_azure_files_attempt_utc DATETIME(3) NULL,
+    azure_blob_uploaded TINYINT(1) NOT NULL,
+    last_azure_blob_attempt_utc DATETIME(3) NULL,
     payload_sha256 CHAR(64) NULL,
   payload_json LONGTEXT NOT NULL,
   INDEX idx_ocr_created_utc (created_utc),
@@ -90,33 +158,48 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
         await using MySqlCommand command = new(ddl, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
 
-        const string addHashColumn = """
-ALTER TABLE ocr_result_log
-ADD COLUMN IF NOT EXISTS payload_sha256 CHAR(64) NULL;
-""";
+        const string hashColumnExistsSql = """
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'ocr_result_log'
+      AND column_name = 'payload_sha256';
+    """;
 
-        await using MySqlCommand addHashCommand = new(addHashColumn, connection);
-        await addHashCommand.ExecuteNonQueryAsync(cancellationToken);
-
-        const string uniqueIndex = """
-CREATE UNIQUE INDEX uq_ocr_file_payload
-ON ocr_result_log (file_name, payload_sha256);
-""";
-
-        try
+        await using MySqlCommand hashColumnExistsCommand = new(hashColumnExistsSql, connection);
+        object? hashColumnExists = await hashColumnExistsCommand.ExecuteScalarAsync(cancellationToken);
+        if (Convert.ToInt32(hashColumnExists) == 0)
         {
-            await using MySqlCommand indexCommand = new(uniqueIndex, connection);
-            await indexCommand.ExecuteNonQueryAsync(cancellationToken);
+            const string addHashColumn = """
+    ALTER TABLE ocr_result_log
+    ADD COLUMN payload_sha256 CHAR(64) NULL;
+    """;
+
+            await using MySqlCommand addHashCommand = new(addHashColumn, connection);
+            await addHashCommand.ExecuteNonQueryAsync(cancellationToken);
         }
-        catch (MySqlException ex) when (ex.Number == 1061)
-        {
-            // The index already exists on a previously initialized database.
-        }
+
     }
 
     private static string ComputeSha256(string value)
     {
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static void AddMetadataParameters(MySqlCommand cmd, DocumentProcessingMetadata metadata)
+    {
+        cmd.Parameters.AddWithValue("@file_name", metadata.FileName);
+        cmd.Parameters.AddWithValue("@source_file_name", metadata.SourceFileName);
+        cmd.Parameters.AddWithValue("@original_creation_time_local", metadata.OriginalCreationTimeLocal);
+        cmd.Parameters.AddWithValue("@ingested_utc", metadata.IngestedUtc);
+        cmd.Parameters.AddWithValue("@api_ocr_succeeded", metadata.ApiOcrSucceeded);
+        cmd.Parameters.AddWithValue("@external_ocr_last_status_code", metadata.ExternalOcrLastStatusCode ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@external_ocr_last_error", metadata.ExternalOcrLastError);
+        cmd.Parameters.AddWithValue("@last_api_attempt_utc", metadata.LastApiAttemptUtc ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@azure_files_uploaded", metadata.AzureFilesUploaded);
+        cmd.Parameters.AddWithValue("@last_azure_files_attempt_utc", metadata.LastAzureFilesAttemptUtc ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@azure_blob_uploaded", metadata.AzureBlobUploaded);
+        cmd.Parameters.AddWithValue("@last_azure_blob_attempt_utc", metadata.LastAzureBlobAttemptUtc ?? (object)DBNull.Value);
     }
 }

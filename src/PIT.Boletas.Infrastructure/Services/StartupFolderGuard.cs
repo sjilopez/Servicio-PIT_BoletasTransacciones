@@ -115,11 +115,11 @@ public sealed class StartupFolderGuard(
     },
     "AzureFiles": {
         "ConnectionString": "",
-        "ShareName": ""
+        "ShareName": "boleta-transacciones"
     },
     "AzureBlob": {
         "ConnectionString": "",
-        "ContainerName": ""
+        "ContainerName": "boleta-transacciones"
     },
   "Alerts": {
         "Enabled": true,

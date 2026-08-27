@@ -21,13 +21,19 @@ public static class MetadataSidecarStore
     {
         string metadataPath = GetMetadataPath(pdfPath);
 
+        return LoadOrCreateFromPath(pdfPath, metadataPath);
+    }
+
+    public static DocumentProcessingMetadata LoadOrCreateFromPath(string filePath, string metadataPath)
+    {
+
         if (!File.Exists(metadataPath))
         {
             return new DocumentProcessingMetadata
             {
-                FileName = Path.GetFileName(pdfPath),
-                SourceFileName = Path.GetFileName(pdfPath),
-                OriginalCreationTimeLocal = File.GetCreationTime(pdfPath),
+                FileName = Path.GetFileName(filePath),
+                SourceFileName = Path.GetFileName(filePath),
+                OriginalCreationTimeLocal = File.GetCreationTime(filePath),
                 IngestedUtc = DateTime.UtcNow
             };
         }
@@ -40,7 +46,11 @@ public static class MetadataSidecarStore
     public static void Save(string pdfPath, DocumentProcessingMetadata metadata)
     {
         metadata.FileName = Path.GetFileName(pdfPath);
-        string metadataPath = GetMetadataPath(pdfPath);
+        SaveToPath(GetMetadataPath(pdfPath), metadata);
+    }
+
+    public static void SaveToPath(string metadataPath, DocumentProcessingMetadata metadata)
+    {
         string temporaryPath = metadataPath + $".{Guid.NewGuid():N}.tmp";
         string content = JsonSerializer.Serialize(metadata, JsonOptions);
         object saveLock = SaveLocks.GetOrAdd(Path.GetFullPath(metadataPath), static _ => new object());

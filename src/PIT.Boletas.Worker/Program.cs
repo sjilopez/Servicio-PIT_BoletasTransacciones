@@ -3,6 +3,7 @@ using PIT.Boletas.Application.Abstractions;
 using PIT.Boletas.Infrastructure.Security;
 using PIT.Boletas.Infrastructure.DependencyInjection;
 using PIT.Boletas.Worker.HostedServices;
+using PIT.Boletas.Infrastructure.Services;
 
 if (!OperatingSystem.IsWindows())
 {
@@ -83,6 +84,33 @@ if (TryGetArgumentValue(args, "--check-ocr", out string? ocrPath))
 	return;
 }
 
+if (args.Contains("--check-external-ocr", StringComparer.OrdinalIgnoreCase))
+{
+	string? externalOcrPath = TryGetArgumentValue(args, "--check-external-ocr", out string? requestedPath)
+		? requestedPath
+		: FindLatestPdf(@"C:\Scans");
+
+	if (string.IsNullOrWhiteSpace(externalOcrPath) || !File.Exists(externalOcrPath))
+	{
+		throw new FileNotFoundException("No se encontro ningun PDF para comprobar el OCR externo.", externalOcrPath);
+	}
+
+	StageThreeOcrService ocrService = host.Services.GetRequiredService<StageThreeOcrService>();
+	(bool success, int? statusCode, string error, string payload) = await ocrService.CheckExternalOcrAsync(externalOcrPath, CancellationToken.None);
+	Console.WriteLine($"PDF probado: {externalOcrPath}");
+	Console.WriteLine($"OCR externo: {(success ? "OK" : "FALLO")}; HTTP {(statusCode?.ToString() ?? "sin respuesta")}");
+	if (!string.IsNullOrWhiteSpace(error))
+	{
+		Console.WriteLine($"Detalle: {error}");
+	}
+	else
+	{
+		Console.WriteLine($"Respuesta: {payload.Length} caracteres");
+	}
+
+	return;
+}
+
 host.Run();
 
 static bool TryGetArgumentValue(string[] args, string argumentName, out string? value)
@@ -96,4 +124,16 @@ static bool TryGetArgumentValue(string[] args, string argumentName, out string? 
 
 	value = null;
 	return false;
+}
+
+static string? FindLatestPdf(string rootPath)
+{
+	if (!Directory.Exists(rootPath))
+	{
+		return null;
+	}
+
+	return Directory.GetFiles(rootPath, "*.pdf", SearchOption.AllDirectories)
+		.OrderByDescending(File.GetLastWriteTimeUtc)
+		.FirstOrDefault();
 }

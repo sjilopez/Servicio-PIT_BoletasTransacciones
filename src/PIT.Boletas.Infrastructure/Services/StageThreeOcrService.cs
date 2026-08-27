@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,6 +20,21 @@ public sealed class StageThreeOcrService(
     IConfiguration configuration) : IStageThreeOcrService
 {
     private readonly PipelineFoldersOptions _folders = folderOptions.Value;
+
+    public async Task<(bool Success, int? StatusCode, string Error, string Payload)> CheckExternalOcrAsync(
+        string pdfPath,
+        CancellationToken cancellationToken)
+    {
+        string endpoint = configuration.GetValue<string>("ExternalOcr:Endpoint") ?? string.Empty;
+        string apiKey = configuration.GetValue<string>("ExternalOcr:ApiKey") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
+        {
+            return (false, null, "Endpoint o API key vacios.", string.Empty);
+        }
+
+        (bool success, string payload, int? statusCode, string error) = await TryCallApiAsync(endpoint, apiKey, pdfPath, cancellationToken);
+        return (success, statusCode, error, payload);
+    }
 
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
@@ -67,6 +83,8 @@ public sealed class StageThreeOcrService(
 
             if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
             {
+                metadata.ExternalOcrLastStatusCode = null;
+                metadata.ExternalOcrLastError = "Endpoint o API key vacios.";
                 logger.LogWarning("OCR API not configured. File remains in retry flow: {FileName}", Path.GetFileName(pdfPath));
                 await operationalEventService.TrackAsync(
                     "warning",
@@ -89,9 +107,11 @@ public sealed class StageThreeOcrService(
                 continue;
             }
 
-            (bool apiSuccess, string payloadJson) = await TryCallApiAsync(endpoint, apiKey, pdfPath, cancellationToken);
+            (bool apiSuccess, string payloadJson, int? statusCode, string error) = await TryCallApiAsync(endpoint, apiKey, pdfPath, cancellationToken);
             if (!apiSuccess)
             {
+                metadata.ExternalOcrLastStatusCode = statusCode;
+                metadata.ExternalOcrLastError = error;
                 await operationalEventService.TrackAsync(
                     "error",
                     "transient",
@@ -114,6 +134,8 @@ public sealed class StageThreeOcrService(
             }
 
             metadata.ApiOcrSucceeded = true;
+            metadata.ExternalOcrLastStatusCode = statusCode;
+            metadata.ExternalOcrLastError = string.Empty;
             bool dbInserted = await repository.TryInsertOcrJsonAsync(metadata, payloadJson, stageFolder, cancellationToken);
 
             if (!dbInserted)
@@ -132,6 +154,7 @@ public sealed class StageThreeOcrService(
                     dbPendingPath,
                     Path.GetFileNameWithoutExtension(pdfPath) + ".json");
                 await File.WriteAllTextAsync(pendingJson, payloadJson, Encoding.UTF8, cancellationToken);
+                MetadataSidecarStore.SaveToPath(MetadataSidecarStore.GetMetadataPath(pendingJson), metadata);
             }
 
             string nextPath = Path.Combine(compressPath, Path.GetFileName(pdfPath));
@@ -143,7 +166,7 @@ public sealed class StageThreeOcrService(
         return moved;
     }
 
-    private async Task<(bool Success, string PayloadJson)> TryCallApiAsync(
+    private async Task<(bool Success, string PayloadJson, int? StatusCode, string Error)> TryCallApiAsync(
         string endpoint,
         string apiKey,
         string pdfPath,
@@ -156,7 +179,20 @@ public sealed class StageThreeOcrService(
 
             await using FileStream stream = File.OpenRead(pdfPath);
             using MultipartFormDataContent content = new();
-            content.Add(new StreamContent(stream), "file", Path.GetFileName(pdfPath));
+            NameValueHeaderValue? boundaryHeader = content.Headers.ContentType?.Parameters.FirstOrDefault(parameter => parameter.Name == "boundary");
+            if (boundaryHeader is not null && boundaryHeader.Value is not null)
+            {
+                boundaryHeader.Value = boundaryHeader.Value.Trim('"');
+            }
+
+            StreamContent fileContent = new(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+            fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
+            {
+                Name = "\"file\"",
+                FileName = $"\"{Path.GetFileName(pdfPath)}\""
+            };
+            content.Add(fileContent, "file", Path.GetFileName(pdfPath));
 
             using HttpRequestMessage request = new(HttpMethod.Post, endpoint)
             {
@@ -169,7 +205,7 @@ public sealed class StageThreeOcrService(
 
             if (!response.IsSuccessStatusCode)
             {
-                return (false, payloadJson);
+                return (false, payloadJson, (int)response.StatusCode, BuildError(response, payloadJson));
             }
 
             if (!LooksLikeJson(payloadJson))
@@ -181,13 +217,26 @@ public sealed class StageThreeOcrService(
                 });
             }
 
-            return (true, payloadJson);
+            return (true, payloadJson, (int)response.StatusCode, string.Empty);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "OCR API call failed for {FileName}", Path.GetFileName(pdfPath));
-            return (false, string.Empty);
+            return (false, string.Empty, null, ex.Message);
         }
+    }
+
+    private static string BuildError(HttpResponseMessage response, string payload)
+    {
+        string detail = payload.Trim();
+        if (detail.Length > 500)
+        {
+            detail = detail[..500];
+        }
+
+        return string.IsNullOrWhiteSpace(detail)
+            ? $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}"
+            : $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {detail}";
     }
 
     private static bool LooksLikeJson(string value)

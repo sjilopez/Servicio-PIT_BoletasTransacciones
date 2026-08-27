@@ -15,7 +15,8 @@ public sealed class StageSixAzureFilesService(
     ILogger<StageSixAzureFilesService> logger,
     IOperationalEventService operationalEventService,
     IOptions<PipelineFoldersOptions> folderOptions,
-    IConfiguration configuration) : IStageSixAzureFilesService
+    IConfiguration configuration,
+    IOcrResultRepository repository) : IStageSixAzureFilesService
 {
     private readonly PipelineFoldersOptions _folders = folderOptions.Value;
 
@@ -62,6 +63,7 @@ public sealed class StageSixAzureFilesService(
                 await UploadAsync(shareClient, pdfPath, relativePath, cancellationToken);
 
                 metadata.AzureFilesUploaded = true;
+                await repository.TryUpdateMetadataAsync(metadata, cancellationToken);
 
                 string destination = Path.Combine(nextPath, Path.GetFileName(pdfPath));
                 MetadataSidecarStore.MoveWithMetadata(pdfPath, destination);
