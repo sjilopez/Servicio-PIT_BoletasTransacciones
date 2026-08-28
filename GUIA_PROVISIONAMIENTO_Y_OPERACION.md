@@ -126,6 +126,12 @@ Restart-Service PIT_BoletasTransacciones_v2.00
 Los hosts remotos no necesitan PowerShell. Copie el contenido de `artifacts\publish\win-x64` y el archivo cifrado al host destino. Abra una consola `cmd.exe` como Administrador y ejecute:
 
 ```cmd
+Install-Service.cmd
+```
+
+Si `pit-credenciales.enc.json` se encuentra en la misma carpeta que `Install-Service.cmd`, el instalador lo detecta automaticamente, lo utiliza y lo elimina al finalizar. Tambien se puede indicar una ruta alternativa:
+
+```cmd
 Install-Service.cmd "C:\PIT-Seguro\pit-credenciales.enc.json"
 ```
 

@@ -4,6 +4,7 @@ set "SERVICE_NAME=PIT_BoletasTransacciones_v2.00"
 set "SERVICE_DESCRIPTION=Servicio de Digitalizacion OCR de Boletas de Transacciones. Hecho por PIT de Coosajo, R.L. Version: 2.00"
 set "SERVICE_EXE=%~dp0PIT.BoletasTransacciones.exe"
 set "ENCRYPTED_FILE=%~1"
+if not defined ENCRYPTED_FILE if exist "%~dp0pit-credenciales.enc.json" set "ENCRYPTED_FILE=%~dp0pit-credenciales.enc.json"
 
 net session >nul 2>&1
 if errorlevel 1 (
@@ -44,6 +45,10 @@ if defined ENCRYPTED_FILE (
   )
 
   del /Q "%ENCRYPTED_FILE%" >nul 2>&1
+  if exist "%ENCRYPTED_FILE%" (
+    echo No se pudo eliminar el archivo cifrado: %ENCRYPTED_FILE%
+    exit /b 1
+  )
 )
 
 sc.exe start "%SERVICE_NAME%"
