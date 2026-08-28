@@ -1,5 +1,5 @@
 $serviceName = "PIT_BoletasTransacciones_v2.00"
-$serviceDescription = "Servicio de Digitalización OCR de Boletas de Transacciones. Hecho por PIT de Coosajo, R.L. Versión: 2.00"
+$serviceDescription = "Servicio de Digitalizacion OCR de Boletas de Transacciones. Hecho por PIT de Coosajo, R.L. Version: 2.00"
 
 sc.exe config $serviceName start= auto
 sc.exe description $serviceName "$serviceDescription"
