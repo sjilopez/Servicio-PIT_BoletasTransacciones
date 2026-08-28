@@ -1,6 +1,6 @@
 # Guia de provisioning y operacion
 
-Servicio: `PIT_BoletasTransacciones`
+Servicio: `PIT_BoletasTransacciones_v2.00`
 
 Esta guia explica como instalar el servicio, registrar sus credenciales de forma segura y actualizar valores posteriormente.
 
@@ -46,7 +46,7 @@ En una primera ejecucion, si existe el archivo antiguo, el servicio intenta migr
 Esta operacion se realiza en un equipo seguro. Use el ejecutable publicado; el ejemplo con `bin\Debug` es solamente para pruebas locales.
 
 ```powershell
-.\PIT.Boletas.Worker.exe `
+.\PIT.BoletasTransacciones.exe `
   --create-provisioning-file `
   "C:\PIT-Seguro\pit-credenciales.enc.json"
 ```
@@ -76,7 +76,7 @@ La contrasena del archivo cifrado no se guarda en el archivo. Si se pierde, hay 
 
 ```powershell
 .\deploy\msi\Provision-EncryptedCredentials.ps1 `
-  -ServiceExecutable "C:\Program Files\PIT Boletas Transacciones\PIT.Boletas.Worker.exe" `
+  -ServiceExecutable "C:\Program Files\PIT Boletas Transacciones\PIT.BoletasTransacciones.exe" `
   -EncryptedFile "C:\PIT-Seguro\pit-credenciales.enc.json" `
   -DeleteAfterProvisioning
 ```
@@ -94,7 +94,7 @@ El script:
 Ejecute el diagnostico como Administrador o con la misma identidad que utilizara el servicio:
 
 ```powershell
-& "C:\Program Files\PIT Boletas Transacciones\PIT.Boletas.Worker.exe" `
+& "C:\Program Files\PIT Boletas Transacciones\PIT.BoletasTransacciones.exe" `
   --check-credentials
 ```
 
@@ -116,9 +116,9 @@ El comando solo muestra nombres y nunca imprime los valores.
 Despues inicie o reinicie el servicio:
 
 ```powershell
-Start-Service PIT_BoletasTransacciones
+Start-Service PIT_BoletasTransacciones_v2.00
 # o, si ya estaba iniciado:
-Restart-Service PIT_BoletasTransacciones
+Restart-Service PIT_BoletasTransacciones_v2.00
 ```
 
 ### Instalacion sin PowerShell
@@ -152,7 +152,7 @@ Cuando el proveedor entregue una API key nueva:
 Creacion del paquete:
 
 ```powershell
-.\PIT.Boletas.Worker.exe `
+.\PIT.BoletasTransacciones.exe `
   --create-provisioning-file `
   "C:\PIT-Seguro\actualizar-ocr.enc.json"
 ```
@@ -161,7 +161,7 @@ Provision:
 
 ```powershell
 .\deploy\msi\Provision-EncryptedCredentials.ps1 `
-  -ServiceExecutable "C:\Program Files\PIT Boletas Transacciones\PIT.Boletas.Worker.exe" `
+  -ServiceExecutable "C:\Program Files\PIT Boletas Transacciones\PIT.BoletasTransacciones.exe" `
   -EncryptedFile "C:\PIT-Seguro\actualizar-ocr.enc.json" `
   -DeleteAfterProvisioning
 ```
@@ -169,7 +169,7 @@ Provision:
 Reinicio:
 
 ```powershell
-Restart-Service PIT_BoletasTransacciones
+Restart-Service PIT_BoletasTransacciones_v2.00
 ```
 
 ## 7. Cambiar MySQL o Azure
@@ -240,7 +240,7 @@ El resultado queda en `artifacts\publish\win-x64`.
 Diagnostico de Credential Manager:
 
 ```powershell
-.\src\PIT.Boletas.Worker\bin\Debug\net10.0\PIT.Boletas.Worker.exe --check-credentials
+.\src\PIT.Boletas.Worker\bin\Debug\net10.0\PIT.BoletasTransacciones.exe --check-credentials
 ```
 
 Compilacion:

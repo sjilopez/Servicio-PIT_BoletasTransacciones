@@ -1,4 +1,4 @@
-# PIT_BoletasTransacciones - Pendientes y Pruebas
+# PIT_BoletasTransacciones_v2.00 - Pendientes y Pruebas
 
 ## Estado y pendientes de produccion
 

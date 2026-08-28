@@ -1,6 +1,6 @@
 @echo off
 setlocal
-set "SERVICE_NAME=PIT_BoletasTransacciones"
+set "SERVICE_NAME=PIT_BoletasTransacciones_v2.00"
 
 net session >nul 2>&1
 if errorlevel 1 (

@@ -61,7 +61,7 @@ builder.Services.Configure<MonitoringOptions>(builder.Configuration.GetSection(M
 builder.Services.Configure<CompressionOptions>(builder.Configuration.GetSection(CompressionOptions.SectionName));
 builder.Services.AddWindowsService(options =>
 {
-	options.ServiceName = "PIT_BoletasTransacciones";
+	options.ServiceName = "PIT_BoletasTransacciones_v2.00";
 });
 
 builder.Services.AddFolderBootstrapServices();
@@ -70,6 +70,12 @@ builder.Services.AddHostedService<PipelineOrchestratorWorker>();
 builder.Services.AddHostedService<ServiceHeartbeatHostedService>();
 
 var host = builder.Build();
+
+if (args.Contains("--check-active-user", StringComparer.OrdinalIgnoreCase))
+{
+	Console.WriteLine($"Usuario activo detectado: {StageOneIngestionService.ResolveInteractiveUser()}");
+	return;
+}
 
 if (TryGetArgumentValue(args, "--check-ocr", out string? ocrPath))
 {

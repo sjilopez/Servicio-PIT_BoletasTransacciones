@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using PIT.Boletas.Application.Abstractions;
 using PIT.Boletas.Application.Configuration;
@@ -197,10 +198,15 @@ public sealed class StageOneIngestionService(
         }
     }
 
-    private static string ResolveInteractiveUser()
+    public static string ResolveInteractiveUser()
     {
         try
         {
+            if (WTSUserSession.TryGetActiveUser(out string activeUser))
+            {
+                return activeUser;
+            }
+
             using Process process = new();
             process.StartInfo = new ProcessStartInfo
             {
@@ -244,7 +250,85 @@ public sealed class StageOneIngestionService(
             // Fallback to service identity when interactive session cannot be detected.
         }
 
-        return Environment.UserName.ToUpperInvariant();
+        return "UNKNOWN";
+    }
+
+    private static class WTSUserSession
+    {
+        private const int WtsActive = 0;
+        private const int WtsUserName = 5;
+
+        public static bool TryGetActiveUser(out string userName)
+        {
+            userName = string.Empty;
+
+            if (!WTSEnumerateSessions(IntPtr.Zero, 0, 1, out IntPtr sessions, out int count))
+            {
+                return false;
+            }
+
+            try
+            {
+                int sessionInfoSize = Marshal.SizeOf<WtsSessionInfo>();
+                for (int index = 0; index < count; index++)
+                {
+                    IntPtr current = IntPtr.Add(sessions, index * sessionInfoSize);
+                    WtsSessionInfo session = Marshal.PtrToStructure<WtsSessionInfo>(current);
+                    if (session.State != WtsActive ||
+                        !WTSQuerySessionInformation(IntPtr.Zero, session.SessionId, WtsUserName, out IntPtr buffer, out _))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        string value = Marshal.PtrToStringUni(buffer)?.Trim() ?? string.Empty;
+                        if (!string.IsNullOrWhiteSpace(value) && !value.EndsWith('$'))
+                        {
+                            userName = value.ToUpperInvariant();
+                            return true;
+                        }
+                    }
+                    finally
+                    {
+                        WTSFreeMemory(buffer);
+                    }
+                }
+            }
+            finally
+            {
+                WTSFreeMemory(sessions);
+            }
+
+            return false;
+        }
+
+        [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool WTSEnumerateSessions(
+            IntPtr server,
+            int reserved,
+            int version,
+            out IntPtr sessionInfo,
+            out int sessionCount);
+
+        [DllImport("wtsapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool WTSQuerySessionInformation(
+            IntPtr server,
+            int sessionId,
+            int informationClass,
+            out IntPtr buffer,
+            out int byteCount);
+
+        [DllImport("wtsapi32.dll")]
+        private static extern void WTSFreeMemory(IntPtr memory);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WtsSessionInfo
+        {
+            public int SessionId;
+            public IntPtr WinStationName;
+            public int State;
+        }
     }
 
     private static string ResolveHostIp()

@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>PIT.BoletasTransacciones</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-PIT.Boletas.Worker-65c7e2b6-d8b7-40e0-9e46-4bc31e672fd0</UserSecretsId>

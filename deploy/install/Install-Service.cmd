@@ -1,8 +1,8 @@
 @echo off
 setlocal
-set "SERVICE_NAME=PIT_BoletasTransacciones"
-set "SERVICE_DESCRIPTION=Servicio de Digitalizacion de Boletas de Transacciones"
-set "SERVICE_EXE=%~dp0PIT.Boletas.Worker.exe"
+set "SERVICE_NAME=PIT_BoletasTransacciones_v2.00"
+set "SERVICE_DESCRIPTION=Servicio de Digitalización OCR de Boletas de Transacciones. Hecho por PIT de Coosajo, R.L. Versión: 2.00"
+set "SERVICE_EXE=%~dp0PIT.BoletasTransacciones.exe"
 set "ENCRYPTED_FILE=%~1"
 
 net session >nul 2>&1
