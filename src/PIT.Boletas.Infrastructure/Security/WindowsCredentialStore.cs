@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 
 namespace PIT.Boletas.Infrastructure.Security;
 
@@ -13,6 +15,7 @@ public static class WindowsCredentialStore
     private const uint CredentialTypeGeneric = 1;
     private const uint CredentialPersistLocalMachine = 2;
     private const int ErrorNotFound = 1168;
+    private const string MachineSecretsFile = @"C:\ProgramData\PIT-BoletasTransaccionales\Config\machine-secrets.bin";
 
     private static readonly IReadOnlyDictionary<string, string> Targets = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -69,13 +72,16 @@ public static class WindowsCredentialStore
 
     public static Dictionary<string, string> LoadConfigurationOverrides()
     {
-        Dictionary<string, string> values = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> values = ReadMachineSecrets();
         foreach ((string configurationKey, string target) in Targets)
         {
-            string? value = Read(target);
-            if (!string.IsNullOrWhiteSpace(value))
+            if (!values.ContainsKey(configurationKey))
             {
-                values[configurationKey] = value;
+                string? value = Read(target);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    values[configurationKey] = value;
+                }
             }
         }
 
@@ -174,6 +180,8 @@ public static class WindowsCredentialStore
                 }
             }
 
+            WriteMachineSecrets(values);
+
             Console.WriteLine("Credenciales provisionadas correctamente.");
         }
         catch (CryptographicException)
@@ -241,6 +249,68 @@ public static class WindowsCredentialStore
         finally
         {
             CredFree(credentialPointer);
+        }
+    }
+
+    private static Dictionary<string, string> ReadMachineSecrets()
+    {
+        if (!File.Exists(MachineSecretsFile))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            byte[] encrypted = File.ReadAllBytes(MachineSecretsFile);
+            byte[] plainText = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.LocalMachine);
+            Dictionary<string, string>? values = JsonSerializer.Deserialize<Dictionary<string, string>>(plainText);
+            CryptographicOperations.ZeroMemory(plainText);
+            return values ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is CryptographicException or JsonException or IOException)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static void WriteMachineSecrets(IReadOnlyDictionary<string, string> values)
+    {
+        string? directory = Path.GetDirectoryName(MachineSecretsFile);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            throw new InvalidOperationException("No se pudo determinar la carpeta de secretos de maquina.");
+        }
+
+        Directory.CreateDirectory(directory);
+        byte[] plainText = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values));
+        byte[] encrypted = ProtectedData.Protect(plainText, null, DataProtectionScope.LocalMachine);
+        string temporaryPath = MachineSecretsFile + $".{Guid.NewGuid():N}.tmp";
+
+        try
+        {
+            File.WriteAllBytes(temporaryPath, encrypted);
+            File.Move(temporaryPath, MachineSecretsFile, true);
+
+            FileSecurity security = new();
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+                FileSystemRights.Read,
+                AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
+                FileSystemRights.Read,
+                AccessControlType.Allow));
+            new FileInfo(MachineSecretsFile).SetAccessControl(security);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plainText);
+            CryptographicOperations.ZeroMemory(encrypted);
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
         }
     }
 

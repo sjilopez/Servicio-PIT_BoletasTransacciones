@@ -28,8 +28,9 @@ public sealed class StageFiveCompressionService(
 
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
-        string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, "6_COMPRESS");
-        string targetPath = PipelinePathResolver.StagePath(_folders.BasePath, "7_COPY_AZURE_FILES");
+        string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.Compress);
+        string backupPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.LocalBackup);
+        string blobPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.AzureBlob);
 
         if (!Directory.Exists(sourcePath))
         {
@@ -80,7 +81,7 @@ public sealed class StageFiveCompressionService(
                         "CMP001",
                         "Fallo en compresion PDF",
                         ex.Message,
-                        "6_COMPRESS",
+                        PipelineStageNames.Compress,
                         metadata,
                         null,
                         cancellationToken);
@@ -103,10 +104,10 @@ public sealed class StageFiveCompressionService(
                 after,
                 pct);
 
-            string destination = Path.Combine(targetPath, Path.GetFileName(pdfPath));
+            string destinationFolder = metadata.RequiresAzureBlob ? blobPath : backupPath;
+            string destination = Path.Combine(destinationFolder, Path.GetFileName(pdfPath));
             MetadataSidecarStore.MoveWithMetadata(pdfPath, destination);
-            metadata.FileName = Path.GetFileName(destination);
-            MetadataSidecarStore.Save(destination, metadata);
+            MetadataSidecarStore.DeleteMetadata(destination);
             moved++;
         }
 

@@ -10,4 +10,6 @@ public sealed class DocumentTemplate
     public string Name { get; set; } = string.Empty;
 
     public List<string> Phrases { get; set; } = [];
+
+    public List<string> Keywords { get; set; } = [];
 }

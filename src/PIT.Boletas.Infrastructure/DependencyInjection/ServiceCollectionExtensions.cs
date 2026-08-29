@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Versioning;
 using PIT.Boletas.Application.Abstractions;
+using PIT.Boletas.Application.Configuration;
 using PIT.Boletas.Infrastructure.Services;
 
 namespace PIT.Boletas.Infrastructure.DependencyInjection;
@@ -14,7 +15,18 @@ public static class ServiceCollectionExtensions
 
         services.AddSingleton<IOperationalEventService, OperationalEventService>();
         services.AddSingleton<IOcrResultRepository, MySqlOcrResultRepository>();
-        services.AddSingleton<ILocalOcrService, LocalTesseractOcrService>();
+        services.AddSingleton<LocalTesseractOcrService>();
+        services.AddSingleton<LocalPaddleOcrService>();
+        services.AddSingleton<ILocalOcrService>(serviceProvider =>
+        {
+            LocalOcrOptions options = serviceProvider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<LocalOcrOptions>>()
+                .Value;
+
+            return string.Equals(options.Engine, "Paddle", StringComparison.OrdinalIgnoreCase)
+                ? serviceProvider.GetRequiredService<LocalPaddleOcrService>()
+                : serviceProvider.GetRequiredService<LocalTesseractOcrService>();
+        });
         services.AddSingleton<IStartupFolderGuard, StartupFolderGuard>();
         services.AddSingleton<IStageOneIngestionService, StageOneIngestionService>();
         services.AddSingleton<IStageTwoValidationService, StageTwoValidationService>();

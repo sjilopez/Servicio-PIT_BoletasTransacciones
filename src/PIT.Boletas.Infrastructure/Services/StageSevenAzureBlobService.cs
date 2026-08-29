@@ -21,8 +21,8 @@ public sealed class StageSevenAzureBlobService(
 
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
-        string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, "8_COPY_AZURE_BLOB");
-        string backupPath = PipelinePathResolver.StagePath(_folders.BasePath, "9_LOCAL_BACKUP");
+        string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.AzureBlob);
+        string backupPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.LocalBackup);
 
         if (!Directory.Exists(sourcePath))
         {
@@ -80,7 +80,7 @@ public sealed class StageSevenAzureBlobService(
 
                 string destination = Path.Combine(backupPath, Path.GetFileName(pdfPath));
                 MetadataSidecarStore.MoveWithMetadata(pdfPath, destination);
-                MetadataSidecarStore.Save(destination, metadata);
+                MetadataSidecarStore.DeleteMetadata(destination);
                 moved++;
             }
             catch (Exception ex)

@@ -18,6 +18,14 @@ public sealed class DocumentProcessingMetadata
 
     public DateTime IngestedUtc { get; set; }
 
+    public string DocumentType { get; set; } = string.Empty;
+
+    public double ClassificationConfidence { get; set; }
+
+    public string OcrRoute { get; set; } = string.Empty;
+
+    public bool RequiresAzureBlob { get; set; }
+
     public bool ApiOcrSucceeded { get; set; }
 
     public bool AzureFilesUploaded { get; set; }
@@ -25,6 +33,8 @@ public sealed class DocumentProcessingMetadata
     public bool AzureBlobUploaded { get; set; }
 
     public DateTime? LastApiAttemptUtc { get; set; }
+
+    public DateTime? LastDbAttemptUtc { get; set; }
 
     public int? ExternalOcrLastStatusCode { get; set; }
 

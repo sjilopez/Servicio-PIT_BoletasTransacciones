@@ -119,4 +119,13 @@ public static class MetadataSidecarStore
             File.Delete(metaPath);
         }
     }
+
+    public static void DeleteMetadata(string pdfPath)
+    {
+        string metaPath = GetMetadataPath(pdfPath);
+        if (File.Exists(metaPath))
+        {
+            File.Delete(metaPath);
+        }
+    }
 }

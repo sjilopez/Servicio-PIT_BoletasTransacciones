@@ -65,8 +65,8 @@ Pasos:
 1. Arrancar servicio/app en modo consola.
 2. Copiar PDF de prueba en `C:\Scans\1_IN`.
 3. Verificar movimiento por etapas.
-4. Confirmar TXT OCR en `C:\Scans\OCR`.
-5. Confirmar la fila correspondiente en `ocr_result_log` cuando MySQL este disponible.
+4. Confirmar la fila correspondiente en `ocr_result_log` cuando MySQL este disponible.
+5. Confirmar que `10_LOCAL_BACKUP` conserve el PDF sin `.txt` ni `.meta.json`.
 
 ## C. Pruebas de resiliencia
 1. Apagar temporalmente MySQL y verificar `5_DB_PENDING`.

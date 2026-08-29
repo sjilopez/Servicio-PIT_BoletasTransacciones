@@ -18,7 +18,6 @@ public sealed class StartupFolderGuardTests
             PipelineFoldersOptions options = new()
             {
                 BasePath = root,
-                OcrTextOutputPath = Path.Combine(root, "OCR"),
                 ProgramDataConfigPath = Path.Combine(root, "ProgramData")
             };
 

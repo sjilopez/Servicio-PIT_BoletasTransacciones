@@ -22,8 +22,8 @@ public sealed class StageSixAzureFilesService(
 
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
-        string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, "7_COPY_AZURE_FILES");
-        string nextPath = PipelinePathResolver.StagePath(_folders.BasePath, "8_COPY_AZURE_BLOB");
+        string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.AzureFile);
+        string nextPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.Compress);
 
         if (!Directory.Exists(sourcePath))
         {
@@ -36,7 +36,7 @@ public sealed class StageSixAzureFilesService(
 
         if (string.IsNullOrWhiteSpace(connectionString) || string.IsNullOrWhiteSpace(shareName))
         {
-            logger.LogWarning("Azure Files not configured. Files remain in 7_COPY_AZURE_FILES.");
+            logger.LogWarning("Azure Files not configured. Files remain in {Stage}.", PipelineStageNames.AzureFile);
             return 0;
         }
 
@@ -79,7 +79,7 @@ public sealed class StageSixAzureFilesService(
                     "AZF001",
                     "Fallo de copia Azure Files",
                     ex.Message,
-                    "7_COPY_AZURE_FILES",
+                    PipelineStageNames.AzureFile,
                     metadata,
                     null,
                     cancellationToken);

@@ -39,17 +39,17 @@ public sealed class StageThreeOcrService(
     public async Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
         int moved = 0;
-        moved += await ProcessFolderAsync("3_OCR", fromRetryFolder: false, cancellationToken);
-        moved += await ProcessFolderAsync("4_ERROR_OCR", fromRetryFolder: true, cancellationToken);
+        moved += await ProcessFolderAsync(PipelineStageNames.ExternalOcr, fromRetryFolder: false, cancellationToken);
+        moved += await ProcessFolderAsync(PipelineStageNames.OcrError, fromRetryFolder: true, cancellationToken);
         return moved;
     }
 
     private async Task<int> ProcessFolderAsync(string stageFolder, bool fromRetryFolder, CancellationToken cancellationToken)
     {
         string sourcePath = PipelinePathResolver.StagePath(_folders.BasePath, stageFolder);
-        string errorPath = PipelinePathResolver.StagePath(_folders.BasePath, "4_ERROR_OCR");
-        string dbPendingPath = PipelinePathResolver.StagePath(_folders.BasePath, "5_DB_PENDING");
-        string compressPath = PipelinePathResolver.StagePath(_folders.BasePath, "6_COMPRESS");
+        string errorPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.OcrError);
+        string dbPendingPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.DbPending);
+        string azureFilePath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.AzureFile);
 
         if (!Directory.Exists(sourcePath))
         {
@@ -68,7 +68,7 @@ public sealed class StageThreeOcrService(
 
             if (metadata.ApiOcrSucceeded)
             {
-                string donePath = Path.Combine(compressPath, Path.GetFileName(pdfPath));
+                string donePath = Path.Combine(azureFilePath, Path.GetFileName(pdfPath));
                 MetadataSidecarStore.MoveWithMetadata(pdfPath, donePath);
                 moved++;
                 continue;
@@ -136,6 +136,7 @@ public sealed class StageThreeOcrService(
             metadata.ApiOcrSucceeded = true;
             metadata.ExternalOcrLastStatusCode = statusCode;
             metadata.ExternalOcrLastError = string.Empty;
+            metadata.LastDbAttemptUtc = DateTime.UtcNow;
             bool dbInserted = await repository.TryInsertOcrJsonAsync(metadata, payloadJson, stageFolder, cancellationToken);
 
             if (!dbInserted)
@@ -150,14 +151,19 @@ public sealed class StageThreeOcrService(
                     metadata,
                     null,
                     cancellationToken);
+                string pendingPdf = PipelinePathResolver.BuildNonCollidingFilePath(
+                    dbPendingPath,
+                    Path.GetFileName(pdfPath));
                 string pendingJson = PipelinePathResolver.BuildNonCollidingFilePath(
                     dbPendingPath,
-                    Path.GetFileNameWithoutExtension(pdfPath) + ".json");
+                    Path.GetFileNameWithoutExtension(pendingPdf) + ".json");
+                MetadataSidecarStore.MoveWithMetadata(pdfPath, pendingPdf);
                 await File.WriteAllTextAsync(pendingJson, payloadJson, Encoding.UTF8, cancellationToken);
-                MetadataSidecarStore.SaveToPath(MetadataSidecarStore.GetMetadataPath(pendingJson), metadata);
+                MetadataSidecarStore.SaveToPath(MetadataSidecarStore.GetMetadataPath(pendingPdf), metadata);
+                continue;
             }
 
-            string nextPath = Path.Combine(compressPath, Path.GetFileName(pdfPath));
+            string nextPath = Path.Combine(azureFilePath, Path.GetFileName(pdfPath));
             MetadataSidecarStore.MoveWithMetadata(pdfPath, nextPath);
             MetadataSidecarStore.Save(nextPath, metadata);
             moved++;

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PIT.Boletas.Application.Abstractions;
 using PIT.Boletas.Application.Configuration;
-using PIT.Boletas.Domain.Entities;
 using PIT.Boletas.Infrastructure.Utils;
 
 namespace PIT.Boletas.Infrastructure.Services;
@@ -17,7 +16,7 @@ public sealed class StageEightRetentionService(
 
     public Task<int> ProcessPendingAsync(CancellationToken cancellationToken)
     {
-        string backupPath = PipelinePathResolver.StagePath(_folders.BasePath, "9_LOCAL_BACKUP");
+        string backupPath = PipelinePathResolver.StagePath(_folders.BasePath, PipelineStageNames.LocalBackup);
         if (!Directory.Exists(backupPath))
         {
             return Task.FromResult(0);
@@ -30,8 +29,8 @@ public sealed class StageEightRetentionService(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            DocumentProcessingMetadata metadata = MetadataSidecarStore.LoadOrCreate(pdfPath);
-            if (!RetryWindowEvaluator.ShouldDeleteFromBackup(metadata, pdfPath, retentionDays))
+            DateTime baseline = File.GetCreationTime(pdfPath);
+            if (DateTime.Now < baseline.AddDays(retentionDays))
             {
                 continue;
             }

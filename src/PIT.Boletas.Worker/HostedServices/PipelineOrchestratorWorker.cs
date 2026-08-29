@@ -28,8 +28,8 @@ public sealed class PipelineOrchestratorWorker(
             int stage2 = await ExecuteStageAsync("S2", stageTwoValidationService.ProcessPendingAsync, stoppingToken);
             int stage3 = await ExecuteStageAsync("S3", stageThreeOcrService.ProcessPendingAsync, stoppingToken);
             int stage4 = await ExecuteStageAsync("S4", stageFourDbPendingService.ProcessPendingAsync, stoppingToken);
-            int stage5 = await ExecuteStageAsync("S5", stageFiveCompressionService.ProcessPendingAsync, stoppingToken);
-            int stage6 = await ExecuteStageAsync("S6", stageSixAzureFilesService.ProcessPendingAsync, stoppingToken);
+            int stage5 = await ExecuteStageAsync("S5", stageSixAzureFilesService.ProcessPendingAsync, stoppingToken);
+            int stage6 = await ExecuteStageAsync("S6", stageFiveCompressionService.ProcessPendingAsync, stoppingToken);
             int stage7 = await ExecuteStageAsync("S7", stageSevenAzureBlobService.ProcessPendingAsync, stoppingToken);
             int stage8 = await ExecuteStageAsync("S8", stageEightRetentionService.ProcessPendingAsync, stoppingToken);
 

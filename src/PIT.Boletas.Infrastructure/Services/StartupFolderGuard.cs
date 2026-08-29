@@ -33,7 +33,6 @@ public sealed class StartupFolderGuard(
         }
 
         ValidateStageFolders(report);
-        EnsureDirectory(_options.OcrTextOutputPath, "FS_OCR", report, true);
         EnsureDirectory(_options.ProgramDataConfigPath, "FS_PROGRAMDATA", report, true);
         EnsureOperationalSettingsTemplate(report);
         EnsureTemplateSettings(report);
@@ -99,7 +98,7 @@ public sealed class StartupFolderGuard(
 
         const string template = """
 {
-  "RetryMinutes": 10,
+    "RetryMinutes": 10,
   "Validation": {
     "FuzzyMatch": 85,
     "MinimumMatches": 3
@@ -111,7 +110,8 @@ public sealed class StartupFolderGuard(
     },
   "RetentionDays": 7,
     "MySql": {
-        "ConnectionString": ""
+        "ConnectionString": "",
+        "RetryMinutes": 3
     },
     "AzureFiles": {
         "ConnectionString": "",

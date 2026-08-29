@@ -87,6 +87,13 @@ if (TryGetArgumentValue(args, "--check-ocr", out string? ocrPath))
 	ILocalOcrService ocrService = host.Services.GetRequiredService<ILocalOcrService>();
 	string text = await ocrService.ExtractTextFromPdfAsync(ocrPath, CancellationToken.None);
 	Console.WriteLine($"OCR OK. Caracteres: {text.Length}");
+	if (args.Contains("--show-ocr-text", StringComparer.OrdinalIgnoreCase))
+	{
+		Console.WriteLine("----- INICIO TEXTO OCR -----");
+		Console.WriteLine(text);
+		Console.WriteLine("----- FIN TEXTO OCR -----");
+	}
+
 	return;
 }
 

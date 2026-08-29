@@ -40,6 +40,8 @@ En una primera ejecucion, si existe el archivo antiguo, el servicio intenta migr
 - Acceso a las credenciales vigentes de MySQL, Azure y OCR.
 - El servicio debe instalarse con la cuenta `LocalSystem`.
 - El archivo cifrado debe transportarse por un canal protegido y eliminarse despues de usarlo.
+- La V2 utiliza PaddleOCR local en modo CPU; no requiere Python ni descargas durante la ejecucion.
+- El paquete de instalacion debe incluir las DLL nativas Paddle y la carpeta `ocr\paddle` con los modelos.
 
 ## 3. Crear el archivo cifrado
 
@@ -136,6 +138,34 @@ Install-Service.cmd "C:\PIT-Seguro\pit-credenciales.enc.json"
 ```
 
 El comando crea el servicio como `LocalSystem`, provisiona el archivo cifrado, elimina el archivo temporal y arranca el servicio. Para instalar sin cambiar credenciales, ejecute `Install-Service.cmd` sin argumento.
+
+Antes de copiar el paquete, generelo desde el repositorio V2:
+
+```cmd
+deploy\install\Build-Release.cmd
+```
+
+El script publica para `win-x64`, incluye las dependencias nativas de PaddleOCR y copia los modelos desde `artifacts\paddle-spike-win-x64\ocr\paddle`. Si faltan los modelos, la publicacion se detiene.
+
+En cada host destino:
+
+1. Detenga la version anterior si existe: `sc stop PIT_BoletasTransacciones_v2.00`.
+2. Copie todo el contenido de `artifacts\publish\win-x64` a `C:\Program Files\PIT Boletas Transacciones`.
+3. Copie el archivo cifrado junto a `Install-Service.cmd` o indique su ruta como primer argumento.
+4. Ejecute `Install-Service.cmd` como Administrador.
+5. Verifique las credenciales y el servicio con los comandos de esta guia.
+
+Confirme que el paquete contiene estos recursos antes de distribuirlo:
+
+```text
+PaddleOCR.dll
+paddle_inference.dll
+opencv_world470.dll
+ocr\paddle\det\inference.pdiparams
+ocr\paddle\cls\inference.pdiparams
+ocr\paddle\rec\inference.pdiparams
+ocr\paddle\ppocr_keys.txt
+```
 
 Para desinstalar:
 
