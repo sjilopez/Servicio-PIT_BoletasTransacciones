@@ -1,5 +1,8 @@
+using System.Text.Json;
+using FuzzySharp;
 using PIT.Boletas.Application.Configuration;
 using PIT.Boletas.Application.Abstractions;
+using PIT.Boletas.Application.Models;
 using PIT.Boletas.Infrastructure.Security;
 using PIT.Boletas.Infrastructure.DependencyInjection;
 using PIT.Boletas.Worker.HostedServices;
@@ -45,13 +48,18 @@ WindowsCredentialStore.MigrateLegacySettings(
 	@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json");
 
 var builder = Host.CreateApplicationBuilder(args);
+bool isOcrCheck = args.Contains("--check-ocr", StringComparer.OrdinalIgnoreCase);
+bool isValidationCheck = args.Contains("--check-validation", StringComparer.OrdinalIgnoreCase);
 
 builder.Configuration
 	.AddJsonFile(@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json", optional: true, reloadOnChange: true);
 
-builder.Configuration.AddInMemoryCollection(
-	WindowsCredentialStore.LoadConfigurationOverrides()
-		.Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value)));
+if (!isOcrCheck && !isValidationCheck)
+{
+	builder.Configuration.AddInMemoryCollection(
+		WindowsCredentialStore.LoadConfigurationOverrides()
+			.Select(pair => new KeyValuePair<string, string?>(pair.Key, pair.Value)));
+}
 
 builder.Services.Configure<PipelineFoldersOptions>(builder.Configuration.GetSection(PipelineFoldersOptions.SectionName));
 builder.Services.Configure<IngestionOptions>(builder.Configuration.GetSection(IngestionOptions.SectionName));
@@ -94,6 +102,59 @@ if (TryGetArgumentValue(args, "--check-ocr", out string? ocrPath))
 		Console.WriteLine("----- FIN TEXTO OCR -----");
 	}
 
+	return;
+}
+
+if (TryGetArgumentValue(args, "--check-validation", out string? validationPath))
+{
+	if (!File.Exists(validationPath))
+	{
+		throw new FileNotFoundException("No se encontro el PDF para comprobar validacion.", validationPath);
+	}
+
+	ILocalOcrService ocrService = host.Services.GetRequiredService<ILocalOcrService>();
+	int pageCount = await ocrService.GetPageCountAsync(validationPath, CancellationToken.None);
+	string text = await ocrService.ExtractTextFromPdfAsync(validationPath, CancellationToken.None);
+	IConfiguration validationConfiguration = host.Services.GetRequiredService<IConfiguration>();
+	int fuzzyMatch = Math.Clamp(validationConfiguration.GetValue("Validation:FuzzyMatch", 85), 1, 100);
+	int headerFuzzyMatch = Math.Clamp(validationConfiguration.GetValue("Validation:HeaderFuzzyMatch", 72), 1, 100);
+	int minimumMatches = Math.Max(1, validationConfiguration.GetValue("Validation:MinimumMatches", 3));
+	string requiredHeader = validationConfiguration.GetValue<string>("Validation:RequiredHeader") ?? "BOLETA DE TRANSACCIONES";
+	string configPath = validationConfiguration.GetValue<string>("PipelineFolders:ProgramDataConfigPath")
+	                    ?? @"C:\ProgramData\PIT-BoletasTransaccionales\Config";
+	string templatePath = Path.Combine(configPath, "PlantillasDocumentales.json");
+	TemplateSettings templates = LoadTemplateSettings(templatePath);
+	DocumentTemplate template = templates.Templates.FirstOrDefault()
+	                            ?? new DocumentTemplate { Name = "BoletaTransaccional" };
+	string normalizedText = Normalize(validationText: text);
+	string normalizedHeader = Normalize(requiredHeader);
+	int headerScore = Fuzz.PartialRatio(normalizedHeader, normalizedText);
+	bool headerMatched = normalizedText.Contains(normalizedHeader, StringComparison.OrdinalIgnoreCase)
+	                    || headerScore >= headerFuzzyMatch;
+	List<string> indicators = [.. template.Phrases, .. template.Keywords];
+
+	int matched = 0;
+	foreach (string indicator in indicators)
+	{
+		int score = Fuzz.PartialRatio(Normalize(indicator), normalizedText);
+		bool indicatorMatched = score >= fuzzyMatch;
+		if (indicatorMatched)
+		{
+			matched++;
+		}
+
+	}
+
+	bool isValid = headerMatched && (indicators.Count == 0 || matched >= minimumMatches);
+	bool minimumMatchesReached = indicators.Count == 0 || matched >= minimumMatches;
+	Console.WriteLine();
+	Console.WriteLine("===== RESUMEN DE MATCHES DE LA PLANTILLA =====");
+	Console.WriteLine($"Hojas del archivo: {pageCount}");
+	Console.WriteLine($"Indicadores de la plantilla: {indicators.Count}");
+	Console.WriteLine($"Matches encontrados: {matched}");
+	Console.WriteLine($"Matches minimos requeridos: {minimumMatches}");
+	Console.WriteLine($"Cumple minimo de matches: {(minimumMatchesReached ? "SI" : "NO")}");
+	Console.WriteLine($"Resultado completo Stage 2: {(isValid ? "VALIDO -> 4_OCR_EXTERNO" : "NO VALIDO -> 7_COPY_AZURE_FILE")}");
 	return;
 }
 
@@ -149,4 +210,34 @@ static string? FindLatestPdf(string rootPath)
 	return Directory.GetFiles(rootPath, "*.pdf", SearchOption.AllDirectories)
 		.OrderByDescending(File.GetLastWriteTimeUtc)
 		.FirstOrDefault();
+}
+
+static TemplateSettings LoadTemplateSettings(string path)
+{
+	if (!File.Exists(path))
+	{
+		return new TemplateSettings();
+	}
+
+	try
+	{
+		return JsonSerializer.Deserialize<TemplateSettings>(File.ReadAllText(path), new JsonSerializerOptions
+		{
+			PropertyNameCaseInsensitive = true
+		}) ?? new TemplateSettings();
+	}
+	catch
+	{
+		return new TemplateSettings();
+	}
+}
+
+static string Normalize(string validationText)
+{
+	return validationText
+		.ToUpperInvariant()
+		.Replace("\r", " ")
+		.Replace("\n", " ")
+		.Replace("  ", " ")
+		.Trim();
 }

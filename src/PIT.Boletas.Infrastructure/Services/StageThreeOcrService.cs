@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Net.Http.Headers;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -107,7 +108,27 @@ public sealed class StageThreeOcrService(
                 continue;
             }
 
+            metadata.ExternalOcrAttemptCount++;
+            MetadataSidecarStore.Save(pdfPath, metadata);
+            DateTime requestedUtc = DateTime.UtcNow;
+            Stopwatch stopwatch = Stopwatch.StartNew();
             (bool apiSuccess, string payloadJson, int? statusCode, string error) = await TryCallApiAsync(endpoint, apiKey, pdfPath, cancellationToken);
+            stopwatch.Stop();
+            await repository.TryInsertOcrAttemptAsync(new OcrAttempt
+            {
+                CorrelationId = metadata.SourceFileName,
+                FileName = Path.GetFileName(pdfPath),
+                OcrEngine = "EXTERNAL",
+                AttemptNumber = metadata.ExternalOcrAttemptCount,
+                RequestedUtc = requestedUtc,
+                CompletedUtc = DateTime.UtcNow,
+                Success = apiSuccess,
+                HttpStatusCode = statusCode,
+                ResponseBody = string.IsNullOrEmpty(payloadJson) ? null : payloadJson,
+                ErrorType = apiSuccess ? null : statusCode.HasValue ? "HttpError" : "TransportError",
+                ErrorMessage = string.IsNullOrWhiteSpace(error) ? null : error,
+                DurationMs = stopwatch.ElapsedMilliseconds
+            }, cancellationToken);
             if (!apiSuccess)
             {
                 metadata.ExternalOcrLastStatusCode = statusCode;

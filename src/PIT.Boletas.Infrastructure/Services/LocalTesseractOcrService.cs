@@ -94,6 +94,13 @@ public sealed class LocalTesseractOcrService(
         return Task.FromResult(result);
     }
 
+    public Task<int> GetPageCountAsync(string pdfPath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var docReader = DocLib.Instance.GetDocReader(pdfPath, new PageDimensions(_options.RenderWidth, _options.RenderHeight));
+        return Task.FromResult(docReader.GetPageCount());
+    }
+
     private EngineMode ResolveEngineMode()
     {
         if (Enum.TryParse(_options.EngineMode, ignoreCase: true, out EngineMode engineMode))

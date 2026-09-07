@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 using FuzzySharp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -45,14 +46,56 @@ public sealed class StageTwoValidationService(
         foreach (string pdfPath in Directory.GetFiles(sourcePath, "*.pdf", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            DocumentProcessingMetadata metadata = MetadataSidecarStore.LoadOrCreate(pdfPath);
+            metadata.LocalOcrAttemptCount++;
+            MetadataSidecarStore.Save(pdfPath, metadata);
+            DateTime requestedUtc = DateTime.UtcNow;
+            Stopwatch stopwatch = Stopwatch.StartNew();
 
             string text;
+                int pageCount;
             try
             {
                 text = await localOcrService.ExtractTextFromPdfAsync(pdfPath, cancellationToken);
+                    pageCount = await localOcrService.GetPageCountAsync(pdfPath, cancellationToken);
+                metadata.PageCount = pageCount;
+                MetadataSidecarStore.Save(pdfPath, metadata);
+                stopwatch.Stop();
+                await repository.TryInsertOcrAttemptAsync(new OcrAttempt
+                {
+                    CorrelationId = metadata.SourceFileName,
+                    FileName = Path.GetFileName(pdfPath),
+                    OcrEngine = "LOCAL",
+                    AttemptNumber = metadata.LocalOcrAttemptCount,
+                       PageCount = pageCount,
+                    RequestedUtc = requestedUtc,
+                    CompletedUtc = DateTime.UtcNow,
+                    Success = true,
+                    ResponseBody = JsonSerializer.Serialize(new
+                    {
+                        ocrText = text,
+                        pageCount
+                    }),
+                    DurationMs = stopwatch.ElapsedMilliseconds
+                }, cancellationToken);
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
+                await repository.TryInsertOcrAttemptAsync(new OcrAttempt
+                {
+                    CorrelationId = metadata.SourceFileName,
+                    FileName = Path.GetFileName(pdfPath),
+                    OcrEngine = "LOCAL",
+                    AttemptNumber = metadata.LocalOcrAttemptCount,
+                       PageCount = null,
+                    RequestedUtc = requestedUtc,
+                    CompletedUtc = DateTime.UtcNow,
+                    Success = false,
+                    ErrorType = ex.GetType().Name,
+                    ErrorMessage = ex.ToString(),
+                    DurationMs = stopwatch.ElapsedMilliseconds
+                }, cancellationToken);
                 logger.LogError(ex, "Local OCR failed for {FileName}. Document will be routed to {Stage}.", Path.GetFileName(pdfPath), PipelineStageNames.OcrError);
                 await operationalEventService.TrackAsync(
                     "error",
@@ -61,7 +104,7 @@ public sealed class StageTwoValidationService(
                     "Fallo en OCR local",
                     ex.Message,
                     PipelineStageNames.Validate,
-                    MetadataSidecarStore.LoadOrCreate(pdfPath),
+                    metadata,
                     null,
                     cancellationToken);
 
@@ -88,7 +131,6 @@ public sealed class StageTwoValidationService(
             double confidence = indicators.Count == 0
                 ? headerScore / 100d
                 : Math.Min(headerScore, matched * 100d / indicators.Count) / 100d;
-            DocumentProcessingMetadata metadata = MetadataSidecarStore.LoadOrCreate(pdfPath);
             metadata.DocumentType = documentType;
             metadata.ClassificationConfidence = confidence;
             metadata.OcrRoute = isValid ? PipelineStageNames.ExternalOcr : PipelineStageNames.AzureFile;
@@ -100,6 +142,7 @@ public sealed class StageTwoValidationService(
                 string payloadJson = JsonSerializer.Serialize(new
                 {
                     ocrText = text,
+                       pageCount,
                     documentType = metadata.DocumentType,
                     classificationConfidence = metadata.ClassificationConfidence,
                     ocrRoute = metadata.OcrRoute,

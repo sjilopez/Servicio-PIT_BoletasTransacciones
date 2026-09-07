@@ -114,6 +114,11 @@ public sealed class StageFourDbPendingServiceTests
             return Task.FromResult(InsertResult);
         }
 
+        public Task<bool> TryInsertOcrAttemptAsync(OcrAttempt attempt, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(true);
+        }
+
         public Task<bool> TryUpdateMetadataAsync(DocumentProcessingMetadata metadata, CancellationToken cancellationToken)
         {
             return Task.FromResult(true);

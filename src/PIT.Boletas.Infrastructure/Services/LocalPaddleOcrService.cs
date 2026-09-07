@@ -17,6 +17,7 @@ public sealed class LocalPaddleOcrService(
     ILogger<LocalPaddleOcrService> logger,
     IOptions<LocalOcrOptions> options) : ILocalOcrService, IDisposable
 {
+    private const int PaddlePageSegmentCount = 4;
     private readonly LocalOcrOptions _options = options.Value;
     private readonly object _engineLock = new();
     private PaddleOCREngine? _engine;
@@ -51,22 +52,10 @@ public sealed class LocalPaddleOcrService(
             {
                 using Bitmap header = CropHeader(bitmap);
                 using Bitmap preparedHeader = PrepareHeader(header);
-                OCRResult? headerResult;
-                lock (_engineLock)
-                {
-                    headerResult = engine.DetectText(preparedHeader);
-                }
-
-                AppendResult(headerResult, ref text);
+                AppendSegmentedResults(engine, preparedHeader, ref text, cancellationToken);
             }
 
-            OCRResult? result;
-            lock (_engineLock)
-            {
-                result = engine.DetectText(bitmap);
-            }
-
-            AppendResult(result, ref text);
+            AppendSegmentedResults(engine, bitmap, ref text, cancellationToken);
         }
 
         string normalized = text.Trim();
@@ -79,6 +68,15 @@ public sealed class LocalPaddleOcrService(
         }
 
         return Task.FromResult(normalized);
+    }
+
+    public Task<int> GetPageCountAsync(string pdfPath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var docReader = DocLib.Instance.GetDocReader(
+            pdfPath,
+            new PageDimensions(Math.Max(1, _options.RenderWidth), Math.Max(1, _options.RenderHeight)));
+        return Task.FromResult(docReader.GetPageCount());
     }
 
     public void Dispose()
@@ -155,6 +153,36 @@ public sealed class LocalPaddleOcrService(
         if (result is not null && !string.IsNullOrWhiteSpace(result.Text))
         {
             text += result.Text.Trim() + Environment.NewLine;
+        }
+    }
+
+    private void AppendSegmentedResults(
+        PaddleOCREngine engine,
+        Bitmap source,
+        ref string text,
+        CancellationToken cancellationToken)
+    {
+        int segmentWidth = (int)Math.Ceiling(source.Width / (double)PaddlePageSegmentCount);
+        for (int segmentIndex = 0; segmentIndex < PaddlePageSegmentCount; segmentIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int x = segmentIndex * segmentWidth;
+            int width = Math.Min(segmentWidth, source.Width - x);
+            if (width <= 0)
+            {
+                break;
+            }
+
+            using Bitmap segment = source.Clone(
+                new Rectangle(x, 0, width, source.Height),
+                PixelFormat.Format32bppArgb);
+            OCRResult? result;
+            lock (_engineLock)
+            {
+                result = engine.DetectText(segment);
+            }
+
+            AppendResult(result, ref text);
         }
     }
 

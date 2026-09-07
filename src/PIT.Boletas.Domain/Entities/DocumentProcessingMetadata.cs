@@ -34,6 +34,12 @@ public sealed class DocumentProcessingMetadata
 
     public DateTime? LastApiAttemptUtc { get; set; }
 
+    public int ExternalOcrAttemptCount { get; set; }
+
+    public int LocalOcrAttemptCount { get; set; }
+
+    public int? PageCount { get; set; }
+
     public DateTime? LastDbAttemptUtc { get; set; }
 
     public int? ExternalOcrLastStatusCode { get; set; }

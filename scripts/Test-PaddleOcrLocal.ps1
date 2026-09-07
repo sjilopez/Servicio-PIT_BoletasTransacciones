@@ -85,6 +85,9 @@ Push-Location $publishPath
 try {
     $output = & $executable @arguments
     $output | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0) {
+        throw "La prueba OCR fallo con codigo de salida $LASTEXITCODE."
+    }
 }
 finally {
     Pop-Location

@@ -9,8 +9,29 @@ ALTER TABLE `ocr_result_log`
   ADD COLUMN `document_type` VARCHAR(120) NOT NULL DEFAULT '',
   ADD COLUMN `classification_confidence` DOUBLE NOT NULL DEFAULT 0,
   ADD COLUMN `ocr_route` VARCHAR(40) NOT NULL DEFAULT '',
+  ADD COLUMN `page_count` INT NULL,
   ADD COLUMN `requires_azure_blob` TINYINT(1) NOT NULL DEFAULT 0,
   ADD COLUMN `azure_files_uploaded` TINYINT(1) NOT NULL DEFAULT 0,
   ADD COLUMN `last_azure_files_attempt_utc` DATETIME(3) NULL,
   ADD COLUMN `azure_blob_uploaded` TINYINT(1) NOT NULL DEFAULT 0,
   ADD COLUMN `last_azure_blob_attempt_utc` DATETIME(3) NULL;
+
+CREATE TABLE IF NOT EXISTS `ocr_attempt` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `correlation_id` VARCHAR(255) NOT NULL,
+  `file_name` VARCHAR(255) NOT NULL,
+  `ocr_engine` VARCHAR(20) NOT NULL,
+  `attempt_number` INT NOT NULL,
+  `requested_utc` DATETIME(3) NOT NULL,
+  `completed_utc` DATETIME(3) NOT NULL,
+  `success` TINYINT(1) NOT NULL DEFAULT 0,
+  `http_status_code` INT NULL,
+  `page_count` INT NULL,
+  `response_body` LONGTEXT NULL,
+  `error_type` VARCHAR(80) NULL,
+  `error_message` TEXT NULL,
+  `duration_ms` BIGINT NOT NULL DEFAULT 0,
+  INDEX `idx_ocr_attempt_correlation` (`correlation_id`),
+  INDEX `idx_ocr_attempt_requested` (`requested_utc`),
+  INDEX `idx_ocr_attempt_engine` (`ocr_engine`)
+);

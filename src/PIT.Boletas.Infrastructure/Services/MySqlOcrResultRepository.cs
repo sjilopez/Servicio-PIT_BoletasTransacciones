@@ -14,6 +14,57 @@ public sealed class MySqlOcrResultRepository(
 {
     private bool _schemaEnsured;
 
+    public async Task<bool> TryInsertOcrAttemptAsync(OcrAttempt attempt, CancellationToken cancellationToken)
+    {
+        string connectionString = configuration.GetValue<string>("MySql:ConnectionString") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            logger.LogWarning("MySQL connection string is empty. OCR attempt audit was not persisted.");
+            return false;
+        }
+
+        try
+        {
+            await using MySqlConnection connection = new(connectionString);
+            await connection.OpenAsync(cancellationToken);
+            if (!_schemaEnsured)
+            {
+                await EnsureSchemaAsync(connection, cancellationToken);
+                _schemaEnsured = true;
+            }
+
+            const string sql = """
+INSERT INTO ocr_attempt
+(correlation_id, file_name, ocr_engine, attempt_number, requested_utc, completed_utc,
+ success, http_status_code, page_count, response_body, error_type, error_message, duration_ms)
+VALUES (@correlation_id, @file_name, @ocr_engine, @attempt_number, @requested_utc, @completed_utc,
+ @success, @http_status_code, @page_count, @response_body, @error_type, @error_message, @duration_ms)
+""";
+
+            await using MySqlCommand command = new(sql, connection);
+            command.Parameters.AddWithValue("@correlation_id", attempt.CorrelationId);
+            command.Parameters.AddWithValue("@file_name", attempt.FileName);
+            command.Parameters.AddWithValue("@ocr_engine", attempt.OcrEngine);
+            command.Parameters.AddWithValue("@attempt_number", attempt.AttemptNumber);
+            command.Parameters.AddWithValue("@requested_utc", attempt.RequestedUtc);
+            command.Parameters.AddWithValue("@completed_utc", attempt.CompletedUtc);
+            command.Parameters.AddWithValue("@success", attempt.Success);
+            command.Parameters.AddWithValue("@http_status_code", attempt.HttpStatusCode ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@page_count", attempt.PageCount ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@response_body", attempt.ResponseBody ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@error_type", attempt.ErrorType ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@error_message", attempt.ErrorMessage ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@duration_ms", attempt.DurationMs);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "OCR attempt audit insert failed for file {FileName}", attempt.FileName);
+            return false;
+        }
+    }
+
     public async Task<bool> TryInsertOcrJsonAsync(
         DocumentProcessingMetadata metadata,
         string rawJson,
@@ -43,12 +94,12 @@ INSERT INTO ocr_result_log
 (file_name, source_file_name, agency, user_name, host_name, host_ip, source_stage, created_utc,
  original_creation_time_local, ingested_utc, api_ocr_succeeded, external_ocr_last_status_code,
  external_ocr_last_error, last_api_attempt_utc, last_db_attempt_utc, document_type,
- classification_confidence, ocr_route, requires_azure_blob, azure_files_uploaded,
+ classification_confidence, ocr_route, page_count, requires_azure_blob, azure_files_uploaded,
  last_azure_files_attempt_utc, azure_blob_uploaded, last_azure_blob_attempt_utc, payload_sha256, payload_json)
 VALUES (@file_name, @source_file_name, @agency, @user_name, @host_name, @host_ip, @source_stage, NOW(3),
  @original_creation_time_local, @ingested_utc, @api_ocr_succeeded, @external_ocr_last_status_code,
  @external_ocr_last_error, @last_api_attempt_utc, @last_db_attempt_utc, @document_type,
- @classification_confidence, @ocr_route, @requires_azure_blob, @azure_files_uploaded,
+ @classification_confidence, @ocr_route, @page_count, @requires_azure_blob, @azure_files_uploaded,
  @last_azure_files_attempt_utc, @azure_blob_uploaded, @last_azure_blob_attempt_utc, @payload_sha256, @payload_json)
 ON DUPLICATE KEY UPDATE id = id
 """;
@@ -68,6 +119,7 @@ ON DUPLICATE KEY UPDATE id = id
             cmd.Parameters.AddWithValue("@external_ocr_last_error", metadata.ExternalOcrLastError);
             cmd.Parameters.AddWithValue("@last_api_attempt_utc", metadata.LastApiAttemptUtc ?? (object)DBNull.Value);
             AddClassificationParameters(cmd, metadata);
+            cmd.Parameters.AddWithValue("@page_count", metadata.PageCount ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@azure_files_uploaded", metadata.AzureFilesUploaded);
             cmd.Parameters.AddWithValue("@last_azure_files_attempt_utc", metadata.LastAzureFilesAttemptUtc ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@azure_blob_uploaded", metadata.AzureBlobUploaded);
@@ -161,6 +213,7 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
     document_type VARCHAR(120) NOT NULL DEFAULT '',
     classification_confidence DOUBLE NOT NULL DEFAULT 0,
     ocr_route VARCHAR(40) NOT NULL DEFAULT '',
+    page_count INT NULL,
     requires_azure_blob TINYINT(1) NOT NULL DEFAULT 0,
     azure_files_uploaded TINYINT(1) NOT NULL,
     last_azure_files_attempt_utc DATETIME(3) NULL,
@@ -172,6 +225,25 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
   INDEX idx_ocr_agency_user (agency, user_name),
   INDEX idx_ocr_host (host_name)
 );
+
+CREATE TABLE IF NOT EXISTS ocr_attempt (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    correlation_id VARCHAR(255) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    ocr_engine VARCHAR(20) NOT NULL,
+    attempt_number INT NOT NULL,
+    requested_utc DATETIME(3) NOT NULL,
+    completed_utc DATETIME(3) NOT NULL,
+    success TINYINT(1) NOT NULL,
+    http_status_code INT NULL,
+    response_body LONGTEXT NULL,
+    error_type VARCHAR(80) NULL,
+    error_message TEXT NULL,
+    duration_ms BIGINT NOT NULL,
+    INDEX idx_ocr_attempt_correlation (correlation_id),
+    INDEX idx_ocr_attempt_requested (requested_utc),
+    INDEX idx_ocr_attempt_engine (ocr_engine)
+);
 """;
 
         await using MySqlCommand command = new(ddl, connection);
@@ -182,6 +254,7 @@ CREATE TABLE IF NOT EXISTS ocr_result_log (
         await EnsureColumnAsync(connection, "classification_confidence", "DOUBLE NOT NULL DEFAULT 0", cancellationToken);
         await EnsureColumnAsync(connection, "ocr_route", "VARCHAR(40) NOT NULL DEFAULT ''", cancellationToken);
         await EnsureColumnAsync(connection, "requires_azure_blob", "TINYINT(1) NOT NULL DEFAULT 0", cancellationToken);
+        await EnsureColumnAsync(connection, "page_count", "INT NULL", cancellationToken);
 
         const string hashColumnExistsSql = """
     SELECT COUNT(*)
