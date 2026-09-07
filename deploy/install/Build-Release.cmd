@@ -6,6 +6,8 @@ set "PADDLE_MODELS=%ROOT%\artifacts\paddle-spike-win-x64\ocr\paddle"
 
 if not exist "%ROOT%\artifacts" mkdir "%ROOT%\artifacts"
 
+if exist "%OUTPUT%" rmdir /S /Q "%OUTPUT%"
+
 dotnet publish "%ROOT%\src\PIT.Boletas.Worker\PIT.Boletas.Worker.csproj" ^
   --configuration Release ^
   --runtime win-x64 ^
