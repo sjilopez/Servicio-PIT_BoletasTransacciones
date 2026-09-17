@@ -227,7 +227,7 @@ VALUES (NOW(3), @service_name, @host_name, @host_ip, @status)
 
             using MailMessage mail = new(alerting.From, alerting.To)
             {
-                Subject = "PIT_BoletasTransacciones_v2.00 - Alerta critica",
+                Subject = "PIT_BoletasTransacciones_v3.0 - Alerta critica",
                 Body = message
             };
 

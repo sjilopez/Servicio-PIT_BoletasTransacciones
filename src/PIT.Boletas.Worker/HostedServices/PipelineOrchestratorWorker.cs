@@ -49,7 +49,13 @@ public sealed class PipelineOrchestratorWorker(
                     stage8);
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, _ingestionOptions.PollIntervalSeconds)), stoppingToken);
+            Task delayTask = Task.Delay(
+                TimeSpan.FromSeconds(Math.Max(1, _ingestionOptions.ReconciliationIntervalSeconds)),
+                stoppingToken);
+            Task activityTask = stageOneIngestionService.WaitForActivityAsync(
+                TimeSpan.FromSeconds(Math.Max(1, _ingestionOptions.ReconciliationIntervalSeconds)),
+                stoppingToken);
+            await Task.WhenAny(delayTask, activityTask);
         }
 
         logger.LogInformation("Pipeline orchestrator stopping.");

@@ -14,7 +14,7 @@ public sealed class ServiceHeartbeatHostedService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        string serviceName = configuration.GetValue<string>("Service:Name") ?? "PIT_BoletasTransacciones_v2.00";
+        string serviceName = configuration.GetValue<string>("Service:Name") ?? "PIT_BoletasTransacciones_v3.0";
 
         while (!stoppingToken.IsCancellationRequested)
         {

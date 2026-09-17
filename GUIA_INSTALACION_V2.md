@@ -1,14 +1,14 @@
 # Guia de instalacion y pruebas
 
-## PIT Boletas Transacciones V2
+## PIT Boletas Transacciones V3.0
 
-Servicio: `PIT_BoletasTransacciones_v2.00`
+Servicio: `PIT_BoletasTransacciones_v3.0`
 
-Version Git: `v2.0.0`
+Version de trabajo: `v3.0`
 
-Rama de trabajo: `feature/paddleocr-pipeline-v2`
+Rama de trabajo: `release/v3.0`
 
-Esta guia describe como generar, instalar, configurar y probar la V2 con PaddleOCR local.
+Esta guia describe como generar, instalar, configurar y probar la V3.0 con PaddleOCR local.
 
 > No guardar contrasenas, API keys ni connection strings en este archivo ni en Git.
 
@@ -112,7 +112,7 @@ cd /d "C:\Program Files\PIT Boletas Transacciones"
 Install-Service.cmd pit-credenciales.enc.json
 ```
 
-El instalador crea el servicio `PIT_BoletasTransacciones_v2.00` como `LocalSystem`, configura reinicio automatico, registra las credenciales, elimina el archivo cifrado e inicia el servicio.
+El instalador detiene y elimina el servicio V2 si existe, crea `PIT_BoletasTransacciones_v3.0` como `LocalSystem`, configura reinicio automatico, registra las credenciales, elimina el archivo cifrado e inicia el servicio. No borra documentos ni credenciales existentes.
 
 Durante el provisioning se crea en el host:
 
@@ -127,7 +127,7 @@ Ese archivo queda cifrado y protegido para que lo pueda leer `LocalSystem`. No e
 Consultar el estado del servicio:
 
 ```cmd
-sc query PIT_BoletasTransacciones_v2.00
+sc query PIT_BoletasTransacciones_v3.0
 ```
 
 Verificar las credenciales sin mostrar sus valores:
@@ -289,9 +289,9 @@ El servicio reintenta MySQL durante el periodo configurado, actualmente 3 minuto
 
 ## 11. Actualizar un host existente
 
-El instalador no reemplaza un servicio que ya existe.
+El instalador V3 reemplaza el servicio V2 automaticamente y conserva documentos, configuracion y credenciales.
 
-1. Detener el servicio:
+1. Detener la version anterior si se desea hacerlo manualmente:
 
 ```cmd
 sc stop PIT_BoletasTransacciones_v2.00
@@ -354,7 +354,7 @@ Crear un nuevo archivo cifrado y provisionarlo:
 Reiniciar:
 
 ```powershell
-Restart-Service PIT_BoletasTransacciones_v2.00
+Restart-Service PIT_BoletasTransacciones_v3.0
 ```
 
 ## 13. Base de datos
@@ -365,7 +365,7 @@ Antes de usar MySQL en produccion, ejecutar:
 deploy\database\Upgrade-OcrResultLog.sql
 ```
 
-La V2 tambien intenta crear o actualizar automaticamente las columnas necesarias al conectar.
+La V3.0 tambien intenta crear o actualizar automaticamente las columnas necesarias al conectar.
 
 ## 14. Desinstalar
 
@@ -402,7 +402,7 @@ Prueba rapida de Paddle durante desarrollo:
 .\scripts\Test-PaddleOcrLocal.ps1 -PdfPath "C:\tmp\Irving.pdf"
 ```
 
-## 16. Version Git
+## 16. Version de trabajo
 
 Consultar la version:
 
@@ -410,8 +410,8 @@ Consultar la version:
 git describe --tags --always
 ```
 
-La version cerrada es:
+La version de trabajo es:
 
 ```text
-v2.0.0
+v3.0
 ```

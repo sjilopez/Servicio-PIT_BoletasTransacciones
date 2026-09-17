@@ -14,6 +14,11 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient();
 
         services.AddSingleton<IOperationalEventService, OperationalEventService>();
+        services.AddSingleton<OneDriveScannerService>();
+        services.AddSingleton<IOneDriveScannerService>(serviceProvider =>
+            serviceProvider.GetRequiredService<OneDriveScannerService>());
+        services.AddHostedService(serviceProvider =>
+            serviceProvider.GetRequiredService<OneDriveScannerService>());
         services.AddSingleton<IOcrResultRepository, MySqlOcrResultRepository>();
         services.AddSingleton<LocalTesseractOcrService>();
         services.AddSingleton<LocalPaddleOcrService>();

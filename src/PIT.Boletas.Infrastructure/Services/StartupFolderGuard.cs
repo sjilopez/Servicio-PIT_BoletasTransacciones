@@ -105,6 +105,7 @@ public sealed class StartupFolderGuard(
   },
     "Ingestion": {
         "PollIntervalSeconds": 10,
+        "ReconciliationIntervalSeconds": 30,
         "StabilizationChecks": 3,
         "StabilizationDelayMilliseconds": 500
     },

@@ -6,6 +6,8 @@ public sealed class IngestionOptions
 
     public int PollIntervalSeconds { get; set; } = 10;
 
+    public int ReconciliationIntervalSeconds { get; set; } = 30;
+
     public int StabilizationChecks { get; set; } = 3;
 
     public int StabilizationDelayMilliseconds { get; set; } = 500;

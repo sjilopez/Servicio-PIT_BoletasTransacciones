@@ -1,7 +1,8 @@
 @echo off
 setlocal
-set "SERVICE_NAME=PIT_BoletasTransacciones_v2.00"
-set "SERVICE_DESCRIPTION=Servicio de Digitalizacion OCR de Boletas de Transacciones. Hecho por PIT de Coosajo, R.L. Version: 2.00"
+set "SERVICE_NAME=PIT_BoletasTransacciones_v3.0"
+set "OLD_SERVICE_NAME=PIT_BoletasTransacciones_v2.00"
+set "SERVICE_DESCRIPTION=Servicio de Digitalizacion OCR de Boletas de Transacciones. Hecho por PIT de Coosajo, R.L. Version: 3.0"
 set "SERVICE_EXE=%~dp0PIT.BoletasTransacciones.exe"
 set "ENCRYPTED_FILE=%~1"
 if not defined ENCRYPTED_FILE if exist "%~dp0pit-credenciales.enc.json" set "ENCRYPTED_FILE=%~dp0pit-credenciales.enc.json"
@@ -21,6 +22,17 @@ sc.exe query "%SERVICE_NAME%" >nul 2>&1
 if not errorlevel 1 (
   echo El servicio ya existe. Detengalo y desinstalelo antes de continuar.
   exit /b 1
+)
+
+sc.exe query "%OLD_SERVICE_NAME%" >nul 2>&1
+if not errorlevel 1 (
+  echo Deteniendo la version anterior: %OLD_SERVICE_NAME%
+  sc.exe stop "%OLD_SERVICE_NAME%" >nul 2>&1
+  sc.exe delete "%OLD_SERVICE_NAME%" >nul 2>&1
+  if errorlevel 1 (
+    echo No se pudo eliminar el servicio anterior.
+    exit /b 1
+  )
 )
 
 sc.exe create "%SERVICE_NAME%" binPath= "\"%SERVICE_EXE%\"" start= auto DisplayName= "%SERVICE_NAME%" obj= LocalSystem

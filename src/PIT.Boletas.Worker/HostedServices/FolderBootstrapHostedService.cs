@@ -5,12 +5,14 @@ namespace PIT.Boletas.Worker.HostedServices;
 
 public sealed class FolderBootstrapHostedService(
     IStartupFolderGuard startupFolderGuard,
+    IOneDriveScannerService oneDriveScannerService,
     IOperationalEventService operationalEventService,
     ILogger<FolderBootstrapHostedService> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         FolderValidationReport report = await startupFolderGuard.ValidateAndEnsureAsync(cancellationToken);
+        await oneDriveScannerService.EnsureScannerAsync(cancellationToken);
 
         foreach (FolderValidationIssue issue in report.Issues)
         {

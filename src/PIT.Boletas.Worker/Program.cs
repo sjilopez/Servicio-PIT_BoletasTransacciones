@@ -50,11 +50,12 @@ WindowsCredentialStore.MigrateLegacySettings(
 var builder = Host.CreateApplicationBuilder(args);
 bool isOcrCheck = args.Contains("--check-ocr", StringComparer.OrdinalIgnoreCase);
 bool isValidationCheck = args.Contains("--check-validation", StringComparer.OrdinalIgnoreCase);
+bool isOneDriveCheck = args.Contains("--check-onedrive", StringComparer.OrdinalIgnoreCase);
 
 builder.Configuration
 	.AddJsonFile(@"C:\ProgramData\PIT-BoletasTransaccionales\Config\appsettings.local.json", optional: true, reloadOnChange: true);
 
-if (!isOcrCheck && !isValidationCheck)
+if (!isOcrCheck && !isValidationCheck && !isOneDriveCheck)
 {
 	builder.Configuration.AddInMemoryCollection(
 		WindowsCredentialStore.LoadConfigurationOverrides()
@@ -69,7 +70,7 @@ builder.Services.Configure<MonitoringOptions>(builder.Configuration.GetSection(M
 builder.Services.Configure<CompressionOptions>(builder.Configuration.GetSection(CompressionOptions.SectionName));
 builder.Services.AddWindowsService(options =>
 {
-	options.ServiceName = "PIT_BoletasTransacciones_v2.00";
+	options.ServiceName = "PIT_BoletasTransacciones_v3.0";
 });
 
 builder.Services.AddFolderBootstrapServices();
@@ -78,6 +79,16 @@ builder.Services.AddHostedService<PipelineOrchestratorWorker>();
 builder.Services.AddHostedService<ServiceHeartbeatHostedService>();
 
 var host = builder.Build();
+
+if (isOneDriveCheck)
+{
+	IOneDriveScannerService oneDriveScannerService = host.Services.GetRequiredService<IOneDriveScannerService>();
+	bool ready = await oneDriveScannerService.EnsureScannerAsync(CancellationToken.None);
+	Console.WriteLine(ready
+		? $"OneDrive Scanner OK: {oneDriveScannerService.ScannerPath}"
+		: "OneDrive Scanner no detectado o no se pudo crear.");
+	return;
+}
 
 if (args.Contains("--check-active-user", StringComparer.OrdinalIgnoreCase))
 {

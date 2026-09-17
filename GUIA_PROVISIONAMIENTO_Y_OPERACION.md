@@ -1,6 +1,6 @@
 # Guia de provisioning y operacion
 
-Servicio: `PIT_BoletasTransacciones_v2.00`
+Servicio: `PIT_BoletasTransacciones_v3.0`
 
 Esta guia explica como instalar el servicio, registrar sus credenciales de forma segura y actualizar valores posteriormente.
 
@@ -118,9 +118,9 @@ El comando solo muestra nombres y nunca imprime los valores.
 Despues inicie o reinicie el servicio:
 
 ```powershell
-Start-Service PIT_BoletasTransacciones_v2.00
+Start-Service PIT_BoletasTransacciones_v3.0
 # o, si ya estaba iniciado:
-Restart-Service PIT_BoletasTransacciones_v2.00
+Restart-Service PIT_BoletasTransacciones_v3.0
 ```
 
 ### Instalacion sin PowerShell
@@ -139,7 +139,7 @@ Install-Service.cmd "C:\PIT-Seguro\pit-credenciales.enc.json"
 
 El comando crea el servicio como `LocalSystem`, provisiona el archivo cifrado, elimina el archivo temporal y arranca el servicio. Para instalar sin cambiar credenciales, ejecute `Install-Service.cmd` sin argumento.
 
-Antes de copiar el paquete, generelo desde el repositorio V2:
+Antes de copiar el paquete, generelo desde la rama V3.0:
 
 ```cmd
 deploy\install\Build-Release.cmd
@@ -149,7 +149,7 @@ El script publica para `win-x64`, incluye las dependencias nativas de PaddleOCR 
 
 En cada host destino:
 
-1. Detenga la version anterior si existe: `sc stop PIT_BoletasTransacciones_v2.00`.
+1. El instalador detiene y elimina automaticamente `PIT_BoletasTransacciones_v2.00` si existe.
 2. Copie todo el contenido de `artifacts\publish\win-x64` a `C:\Program Files\PIT Boletas Transacciones`.
 3. Copie el archivo cifrado junto a `Install-Service.cmd` o indique su ruta como primer argumento.
 4. Ejecute `Install-Service.cmd` como Administrador.
@@ -205,7 +205,7 @@ Provision:
 Reinicio:
 
 ```powershell
-Restart-Service PIT_BoletasTransacciones_v2.00
+Restart-Service PIT_BoletasTransacciones_v3.0
 ```
 
 ## 7. Cambiar MySQL o Azure
